@@ -5,9 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import {
   Settings,
   TrendingUp,
@@ -49,7 +51,10 @@ export default function ProfileScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity style={styles.settingsButton}>
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => router.push('/settings')}
+          >
             <Settings color={Colors.colors.textSecondary} size={24} />
           </TouchableOpacity>
         </View>
@@ -69,7 +74,14 @@ export default function ProfileScreen() {
           >
             <View style={styles.profileHeader}>
               <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarText}>{player.username[0]}</Text>
+                {player.profilePicture ? (
+                  <Image 
+                    source={{ uri: player.profilePicture }}
+                    style={styles.profileAvatarImage}
+                  />
+                ) : (
+                  <Text style={styles.profileAvatarText}>{player.username[0]}</Text>
+                )}
               </View>
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{player.username}</Text>
@@ -293,6 +305,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700' as const,
     color: Colors.colors.textPrimary,
+  },
+  profileAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
   },
   profileInfo: {
     flex: 1,
