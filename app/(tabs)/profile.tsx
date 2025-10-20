@@ -21,12 +21,23 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { MOCK_CURRENT_PLAYER, MOCK_MATCH_HISTORY } from '@/mocks/data';
+import { MOCK_MATCH_HISTORY } from '@/mocks/data';
 import { formatRank, RANK_INFO, getNextRankPoints } from '@/constants/ranks';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const player = MOCK_CURRENT_PLAYER;
+  const { profile } = useUserProfile();
+  
+  if (!profile) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>No profile found</Text>
+      </View>
+    );
+  }
+  
+  const player = profile;
   const rankInfo = RANK_INFO[player.rank.division];
   const nextRankPoints = getNextRankPoints(player.rank.points);
   const progressToNext = ((player.rank.points % 250) / 250) * 100;
@@ -536,5 +547,10 @@ const styles = StyleSheet.create({
   pointsChangeText: {
     fontSize: 18,
     fontWeight: '700' as const,
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.colors.textSecondary,
+    textAlign: 'center' as const,
   },
 });
