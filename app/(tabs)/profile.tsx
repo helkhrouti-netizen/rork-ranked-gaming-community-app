@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,12 +30,30 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { profile } = useUserProfile();
+  const { profile, isAuthenticated, isOnboarded, isLoading } = useUserProfile();
+  
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace('/auth/login');
+      } else if (!isOnboarded) {
+        router.replace('/onboarding');
+      }
+    }
+  }, [isLoading, isAuthenticated, isOnboarded]);
+  
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={Colors.colors.primary} />
+      </View>
+    );
+  }
   
   if (!profile) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>No profile found</Text>
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>Loading profile...</Text>
       </View>
     );
   }
@@ -246,6 +265,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.colors.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     backgroundColor: Colors.colors.surface,
