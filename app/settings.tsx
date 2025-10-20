@@ -158,13 +158,13 @@ export default function SettingsScreen() {
             
             <TouchableOpacity
               style={styles.settingsItem}
-              onPress={() => router.push('/debug-supabase')}
+              onPress={() => router.push('/firebase-diagnostics')}
             >
               <View style={styles.settingsItemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: Colors.colors.success + '20' }]}>
                   <Bug color={Colors.colors.success} size={20} />
                 </View>
-                <Text style={styles.settingsItemText}>Supabase Diagnostics</Text>
+                <Text style={styles.settingsItemText}>Firebase Diagnostics</Text>
               </View>
               <ChevronRight color={Colors.colors.textMuted} size={20} />
             </TouchableOpacity>

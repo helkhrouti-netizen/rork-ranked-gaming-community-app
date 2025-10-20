@@ -20,12 +20,24 @@ import {
   Trophy,
   MessageCircle,
 } from 'lucide-react-native';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match } from '@/types';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
@@ -38,70 +50,91 @@ export default function MatchDetailsScreen() {
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
 
   useEffect(() => {
-    loadMatch();
-    const subscription = supabase
-      .channel(`match_${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${id}` }, () => {
-        loadMatch();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_players', filter: `match_id=eq.${id}` }, () => {
-        loadMatch();
-      })
-      .subscribe();
+    if (!id || typeof id !== 'string') return;
+
+    const matchDocRef = doc(db, 'matches', id);
+    const unsubscribeMatch = onSnapshot(matchDocRef, () => {
+      loadMatch();
+    });
+
+    const matchPlayersRef = collection(db, 'matchPlayers');
+    const playersQuery = query(matchPlayersRef, where('matchId', '==', id));
+    const unsubscribePlayers = onSnapshot(playersQuery, () => {
+      loadMatch();
+    });
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribeMatch();
+      unsubscribePlayers();
     };
   }, [id]);
 
   const loadMatch = async () => {
+    if (!id || typeof id !== 'string') return;
+
     try {
       setIsLoading(true);
-      const { data: matchData, error } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          host:users!matches_host_id_fkey(*),
-          match_players(user:users(*))
-        `)
-        .eq('id', id)
-        .single();
+      const matchDocRef = doc(db, 'matches', id);
+      const matchDoc = await getDoc(matchDocRef);
 
-      if (error || !matchData) {
-        console.error('Error loading match:', error);
+      if (!matchDoc.exists()) {
+        console.error('Match not found');
         return;
       }
 
+      const matchData = matchDoc.data();
+
+      const hostDocRef = doc(db, 'users', matchData.hostId);
+      const hostDoc = await getDoc(hostDocRef);
+      const hostData = hostDoc.exists() ? hostDoc.data() : null;
+
+      const matchPlayersRef = collection(db, 'matchPlayers');
+      const playersQuery = query(matchPlayersRef, where('matchId', '==', id));
+      const playersSnapshot = await getDocs(playersQuery);
+
+      const players = await Promise.all(
+        playersSnapshot.docs.map(async (playerDoc) => {
+          const playerData = playerDoc.data();
+          const userDocRef = doc(db, 'users', playerData.userId);
+          const userDoc = await getDoc(userDocRef);
+          const userData = userDoc.exists() ? userDoc.data() : null;
+
+          return {
+            id: playerData.userId,
+            username: userData?.username || 'User',
+            rank: userData?.rank || { division: 'Cuivre', level: 1, points: 0 },
+            city: userData?.city || 'CASABLANCA',
+            wins: userData?.wins || 0,
+            losses: userData?.losses || 0,
+            reputation: userData?.reputation || 0,
+            level: userData?.level || 1,
+          };
+        })
+      );
+
       const formattedMatch: Match = {
-        id: matchData.id,
-        type: matchData.type,
-        status: matchData.status,
+        id: matchDoc.id,
+        type: matchData.type || 'official',
+        status: matchData.status || 'waiting',
         host: {
-          id: matchData.host.id,
-          username: matchData.host.username || 'User',
-          rank: matchData.host.rank || { division: 'Cuivre', level: 1, points: 0 },
-          city: matchData.host.city || 'CASABLANCA',
-          wins: matchData.host.wins || 0,
-          losses: matchData.host.losses || 0,
-          reputation: matchData.host.reputation || 0,
-          level: matchData.host.level || 1,
+          id: matchData.hostId,
+          username: hostData?.username || 'User',
+          rank: hostData?.rank || { division: 'Cuivre', level: 1, points: 0 },
+          city: hostData?.city || 'CASABLANCA',
+          wins: hostData?.wins || 0,
+          losses: hostData?.losses || 0,
+          reputation: hostData?.reputation || 0,
+          level: hostData?.level || 1,
         },
-        players: (matchData.match_players || []).map((mp: any) => ({
-          id: mp.user.id,
-          username: mp.user.username || 'User',
-          rank: mp.user.rank || { division: 'Cuivre', level: 1, points: 0 },
-          city: mp.user.city || 'CASABLANCA',
-          wins: mp.user.wins || 0,
-          losses: mp.user.losses || 0,
-          reputation: mp.user.reputation || 0,
-          level: mp.user.level || 1,
-        })),
-        maxPlayers: matchData.max_players,
+        players,
+        maxPlayers: matchData.maxPlayers || 4,
         field: matchData.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
-        scheduledTime: matchData.scheduled_time ? new Date(matchData.scheduled_time) : undefined,
-        pointReward: matchData.point_reward,
-        pointPenalty: matchData.point_penalty,
-        createdAt: new Date(matchData.created_at),
+        scheduledTime: matchData.scheduledTime
+          ? new Date(matchData.scheduledTime.seconds * 1000)
+          : undefined,
+        pointReward: matchData.pointReward || 50,
+        pointPenalty: matchData.pointPenalty || 30,
+        createdAt: matchData.createdAt ? new Date(matchData.createdAt.seconds * 1000) : new Date(),
       };
 
       setMatch(formattedMatch);
@@ -113,18 +146,16 @@ export default function MatchDetailsScreen() {
   };
 
   const handleJoinMatch = async () => {
-    if (!profile || !match) return;
+    if (!profile || !match || typeof id !== 'string') return;
 
     try {
       setIsJoining(true);
-      const { error } = await supabase
-        .from('match_players')
-        .insert([{ match_id: match.id, user_id: profile.id }]);
-
-      if (error) {
-        console.error('Error joining match:', error);
-        return;
-      }
+      const matchPlayersRef = collection(db, 'matchPlayers');
+      await addDoc(matchPlayersRef, {
+        matchId: id,
+        userId: profile.id,
+        joinedAt: serverTimestamp(),
+      });
 
       await loadMatch();
     } catch (error) {
@@ -135,20 +166,20 @@ export default function MatchDetailsScreen() {
   };
 
   const handleLeaveMatch = async () => {
-    if (!profile || !match) return;
+    if (!profile || !match || typeof id !== 'string') return;
 
     try {
       setIsLeaving(true);
-      const { error } = await supabase
-        .from('match_players')
-        .delete()
-        .eq('match_id', match.id)
-        .eq('user_id', profile.id);
+      const matchPlayersRef = collection(db, 'matchPlayers');
+      const playersQuery = query(
+        matchPlayersRef,
+        where('matchId', '==', id),
+        where('userId', '==', profile.id)
+      );
+      const playersSnapshot = await getDocs(playersQuery);
 
-      if (error) {
-        console.error('Error leaving match:', error);
-        return;
-      }
+      const deletePromises = playersSnapshot.docs.map((doc) => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
 
       await loadMatch();
     } catch (error) {
@@ -169,15 +200,12 @@ export default function MatchDetailsScreen() {
 
   const hostRankInfo = RANK_INFO[match.host.rank.division];
   const isOfficial = match.type === 'official';
-  const hasJoined = profile ? match.players.some(p => p.id === profile.id) : false;
+  const hasJoined = profile ? match.players.some((p) => p.id === profile.id) : false;
 
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft color={Colors.colors.textPrimary} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Match Details</Text>
@@ -186,10 +214,7 @@ export default function MatchDetailsScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + 100 },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.matchTypeCard}>
@@ -241,13 +266,12 @@ export default function MatchDetailsScreen() {
               <View style={styles.hostStats}>
                 <View style={styles.hostStat}>
                   <Trophy color={Colors.colors.warning} size={14} strokeWidth={2.5} />
-                  <Text style={styles.hostStatText}>
-                    {match.host.wins} wins
-                  </Text>
+                  <Text style={styles.hostStatText}>{match.host.wins} wins</Text>
                 </View>
                 <View style={styles.hostStat}>
                   <Text style={styles.hostStatText}>
-                    {((match.host.wins / (match.host.wins + match.host.losses)) * 100).toFixed(0)}% WR
+                    {((match.host.wins / (match.host.wins + match.host.losses)) * 100).toFixed(0)}%
+                    WR
                   </Text>
                 </View>
               </View>
@@ -308,25 +332,14 @@ export default function MatchDetailsScreen() {
               const playerRankInfo = RANK_INFO[player.rank.division];
               return (
                 <View key={player.id} style={styles.playerCard}>
-                  <View
-                    style={[
-                      styles.playerAvatar,
-                      { borderColor: playerRankInfo.color },
-                    ]}
-                  >
-                    <Text style={styles.playerAvatarText}>
-                      {player.username[0]}
-                    </Text>
+                  <View style={[styles.playerAvatar, { borderColor: playerRankInfo.color }]}>
+                    <Text style={styles.playerAvatarText}>{player.username[0]}</Text>
                   </View>
                   <View style={styles.playerInfo}>
                     <Text style={styles.playerName}>{player.username}</Text>
                     <View style={styles.playerRank}>
-                      <Text style={styles.playerRankEmoji}>
-                        {playerRankInfo.icon}
-                      </Text>
-                      <Text style={styles.playerRankText}>
-                        {formatRank(player.rank)}
-                      </Text>
+                      <Text style={styles.playerRankEmoji}>{playerRankInfo.icon}</Text>
+                      <Text style={styles.playerRankText}>{formatRank(player.rank)}</Text>
                     </View>
                   </View>
                   {player.id === match.host.id && (
@@ -339,16 +352,14 @@ export default function MatchDetailsScreen() {
             })}
 
             {match.players.length < match.maxPlayers &&
-              Array.from({ length: match.maxPlayers - match.players.length }).map(
-                (_, index) => (
-                  <View key={`empty-${index}`} style={styles.emptyPlayerCard}>
-                    <View style={styles.emptyPlayerAvatar}>
-                      <Users color={Colors.colors.textMuted} size={20} />
-                    </View>
-                    <Text style={styles.emptyPlayerText}>Waiting for player...</Text>
+              Array.from({ length: match.maxPlayers - match.players.length }).map((_, index) => (
+                <View key={`empty-${index}`} style={styles.emptyPlayerCard}>
+                  <View style={styles.emptyPlayerAvatar}>
+                    <Users color={Colors.colors.textMuted} size={20} />
                   </View>
-                )
-              )}
+                  <Text style={styles.emptyPlayerText}>Waiting for player...</Text>
+                </View>
+              ))}
           </View>
         </View>
       </ScrollView>
@@ -370,8 +381,8 @@ export default function MatchDetailsScreen() {
             </LinearGradient>
           </TouchableOpacity>
         ) : !hasJoined ? (
-          <TouchableOpacity 
-            style={styles.actionButton} 
+          <TouchableOpacity
+            style={styles.actionButton}
             onPress={handleJoinMatch}
             disabled={isJoining || !profile || match.players.length >= match.maxPlayers}
           >
@@ -397,7 +408,11 @@ export default function MatchDetailsScreen() {
             disabled={isLeaving}
           >
             {isLeaving ? (
-              <ActivityIndicator color={Colors.colors.textPrimary} size="small" style={{ paddingVertical: 16 }} />
+              <ActivityIndicator
+                color={Colors.colors.textPrimary}
+                size="small"
+                style={{ paddingVertical: 16 }}
+              />
             ) : (
               <Text style={styles.leaveButtonText}>Leave Match</Text>
             )}
