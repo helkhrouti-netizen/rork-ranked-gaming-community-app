@@ -9,22 +9,44 @@ const getEnvVariable = (key: string): string | undefined => {
   return process.env[key];
 };
 
-const supabaseUrl = 
-  getEnvVariable('EXPO_PUBLIC_SUPABASE_URL') || 
-  'https://xwjenfvpmqwcikopopkm.supabase.co';
+const getSupabaseUrl = (): string => {
+  const url = 
+    getEnvVariable('SUPABASE_URL') || 
+    getEnvVariable('EXPO_PUBLIC_SUPABASE_URL') ||
+    getEnvVariable('NEXT_PUBLIC_SUPABASE_URL') ||
+    getEnvVariable('PUBLIC_SUPABASE_URL');
+  
+  if (!url) {
+    throw new Error(
+      'Missing SUPABASE_URL environment variable. Please set SUPABASE_URL or EXPO_PUBLIC_SUPABASE_URL in your .env file.'
+    );
+  }
+  
+  return url;
+};
 
-const supabaseAnonKey = 
-  getEnvVariable('EXPO_PUBLIC_SUPABASE_ANON_KEY') || 
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3amVuZnZwbXF3Y2lrb3BvcGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4MDk3NTcsImV4cCI6MjA1MjM4NTc1N30.LUqClhuXV-L7u5QBL4IQVZX_DnYxXL6xZgv6q_7Y3Bs';
+const getSupabaseAnonKey = (): string => {
+  const key = 
+    getEnvVariable('SUPABASE_ANON_KEY') || 
+    getEnvVariable('EXPO_PUBLIC_SUPABASE_ANON_KEY') ||
+    getEnvVariable('NEXT_PUBLIC_SUPABASE_ANON_KEY') ||
+    getEnvVariable('PUBLIC_SUPABASE_ANON_KEY') ||
+    getEnvVariable('SUPABASE_KEY');
+  
+  if (!key) {
+    throw new Error(
+      'Missing SUPABASE_ANON_KEY environment variable. Please set SUPABASE_ANON_KEY or EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file.'
+    );
+  }
+  
+  return key;
+};
+
+const supabaseUrl = getSupabaseUrl();
+const supabaseAnonKey = getSupabaseAnonKey();
 
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Key (first 20 chars):', supabaseAnonKey?.substring(0, 20) + '...');
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
-  );
-}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -33,6 +55,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+});
+
+export const getSupabaseConfig = () => ({
+  url: supabaseUrl,
+  anonKey: supabaseAnonKey,
+  environment: process.env.NODE_ENV || 'development',
 });
 
 console.log('Supabase client initialized successfully');

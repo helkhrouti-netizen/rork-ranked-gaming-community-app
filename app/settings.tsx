@@ -19,6 +19,7 @@ import {
   ChevronRight,
   X,
   Check,
+  Bug,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -147,6 +148,23 @@ export default function SettingsScreen() {
                     {CITY_INFO[profile.city].emoji} {CITY_INFO[profile.city].name}
                   </Text>
                 </View>
+              </View>
+              <ChevronRight color={Colors.colors.textMuted} size={20} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Developer</Text>
+            
+            <TouchableOpacity
+              style={styles.settingsItem}
+              onPress={() => router.push('/debug-supabase')}
+            >
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: Colors.colors.success + '20' }]}>
+                  <Bug color={Colors.colors.success} size={20} />
+                </View>
+                <Text style={styles.settingsItemText}>Supabase Diagnostics</Text>
               </View>
               <ChevronRight color={Colors.colors.textMuted} size={20} />
             </TouchableOpacity>
