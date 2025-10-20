@@ -13,6 +13,7 @@ export interface UserAuth {
   authMethod: 'email' | 'phone';
   password: string;
   username: string;
+  isVerified: boolean;
   createdAt: string;
 }
 
@@ -35,6 +36,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
+  const [pendingVerification, setPendingVerification] = useState<UserAuth | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -84,13 +86,13 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         authMethod,
         password,
         username,
+        isVerified: false,
         createdAt: new Date().toISOString(),
       };
 
-      await AsyncStorage.setItem(USER_AUTH_KEY, JSON.stringify(newAuth));
-      setAuth(newAuth);
-      setIsAuthenticated(true);
-      console.log('Account created:', { ...newAuth, password: '***' });
+      setPendingVerification(newAuth);
+      console.log('Account created, pending verification:', { ...newAuth, password: '***' });
+      return newAuth;
     } catch (error) {
       console.error('Failed to create account:', error);
       throw error;
@@ -119,6 +121,10 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         throw new Error('Incorrect email/phone or password.');
       }
 
+      if (!existingAuth.isVerified) {
+        throw new Error('Account not verified. Please verify your account first.');
+      }
+
       setAuth(existingAuth);
       setIsAuthenticated(true);
 
@@ -136,14 +142,42 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     }
   }, []);
 
+  const verifyAccount = useCallback(async (code: string) => {
+    try {
+      if (!pendingVerification) {
+        throw new Error('No pending verification');
+      }
+
+      const verifiedAuth: UserAuth = {
+        ...pendingVerification,
+        isVerified: true,
+      };
+
+      await AsyncStorage.setItem(USER_AUTH_KEY, JSON.stringify(verifiedAuth));
+      setAuth(verifiedAuth);
+      setIsAuthenticated(true);
+      setPendingVerification(null);
+      console.log('Account verified:', { ...verifiedAuth, password: '***' });
+    } catch (error) {
+      console.error('Failed to verify account:', error);
+      throw error;
+    }
+  }, [pendingVerification]);
+
+  const resendVerificationCode = useCallback(async () => {
+    if (!pendingVerification) {
+      throw new Error('No pending verification');
+    }
+    console.log('Resending verification code to:', pendingVerification.emailOrPhone);
+  }, [pendingVerification]);
+
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem(USER_AUTH_KEY);
-      await AsyncStorage.removeItem(USER_PROFILE_KEY);
       setAuth(null);
       setProfile(null);
       setIsAuthenticated(false);
       setIsOnboarded(false);
+      setPendingVerification(null);
       console.log('Logged out');
     } catch (error) {
       console.error('Failed to log out:', error);
@@ -207,10 +241,13 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     isLoading,
     isAuthenticated,
     isOnboarded,
+    pendingVerification,
     signup,
     login,
     logout,
+    verifyAccount,
+    resendVerificationCode,
     createProfile,
     updateProfile,
-  }), [auth, profile, isLoading, isAuthenticated, isOnboarded, signup, login, logout, createProfile, updateProfile]);
+  }), [auth, profile, isLoading, isAuthenticated, isOnboarded, pendingVerification, signup, login, logout, verifyAccount, resendVerificationCode, createProfile, updateProfile]);
 });

@@ -71,7 +71,7 @@ export default function SignupScreen() {
     setIsLoading(true);
     try {
       await signup(emailOrPhone.trim(), password.trim(), username.trim(), signupMethod);
-      router.replace('/onboarding');
+      router.replace('/auth/verify');
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
       console.error('Signup error:', err);
