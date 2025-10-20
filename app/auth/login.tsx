@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,21 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+
+  const envDebug = useMemo(() => {
+    const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    
+    const urlHost = url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : null;
+    const keyPreview = key ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}` : null;
+    
+    return {
+      hasUrl: !!url,
+      hasKey: !!key,
+      urlHost,
+      keyPreview,
+    };
+  }, []);
 
   const handleLogin = async () => {
     setError('');
@@ -64,9 +79,28 @@ export default function LoginScreen() {
         style={StyleSheet.absoluteFill}
       />
       
+      <View style={[
+        styles.envDebugBanner,
+        { paddingTop: insets.top + 8 },
+        (!envDebug.hasUrl || !envDebug.hasKey) && styles.envDebugBannerError,
+      ]}>
+        {!envDebug.hasUrl || !envDebug.hasKey ? (
+          <Text style={styles.envDebugTextError}>
+            ❌ Missing: {!envDebug.hasUrl ? 'EXPO_PUBLIC_SUPABASE_URL' : ''}{!envDebug.hasUrl && !envDebug.hasKey ? ', ' : ''}{!envDebug.hasKey ? 'EXPO_PUBLIC_SUPABASE_ANON_KEY' : ''}
+          </Text>
+        ) : (
+          <Text style={styles.envDebugText}>
+            🟢 {envDebug.urlHost} • {envDebug.keyPreview}
+          </Text>
+        )}
+      </View>
+      
       <TouchableOpacity
-        style={styles.debugButton}
-        onPress={() => router.push('/debug-supabase' as any)}
+        style={[styles.debugButton, { top: insets.top + 48 }]}
+        onPress={() => {
+          console.log('Navigating to /debug-supabase');
+          router.push('/debug-supabase' as any);
+        }}
         activeOpacity={0.7}
       >
         <Bug color={Colors.colors.textSecondary} size={16} />
@@ -325,7 +359,6 @@ const styles = StyleSheet.create({
   },
   debugButton: {
     position: 'absolute',
-    top: 16,
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -342,5 +375,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: Colors.colors.textSecondary,
+  },
+  envDebugBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.colors.success + '30',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.colors.success + '40',
+    zIndex: 5,
+  },
+  envDebugBannerError: {
+    backgroundColor: Colors.colors.danger + '30',
+    borderBottomColor: Colors.colors.danger + '40',
+  },
+  envDebugText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.colors.success,
+    textAlign: 'center',
+    fontFamily: 'monospace' as const,
+  },
+  envDebugTextError: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.colors.danger,
+    textAlign: 'center',
   },
 });
