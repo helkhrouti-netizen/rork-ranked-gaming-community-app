@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { MoroccoCity } from '@/constants/cities';
 import { Rank } from '@/constants/ranks';
+import { trpcClient } from '@/lib/trpc';
 
 const USER_PROFILE_KEY = '@user_profile';
 const USER_AUTH_KEY = '@user_auth';
@@ -90,6 +91,11 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         createdAt: new Date().toISOString(),
       };
 
+      await trpcClient.auth.sendVerification.mutate({
+        emailOrPhone,
+        authMethod,
+      });
+
       setPendingVerification(newAuth);
       console.log('Account created, pending verification:', { ...newAuth, password: '***' });
       return newAuth;
@@ -148,6 +154,11 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         throw new Error('No pending verification');
       }
 
+      await trpcClient.auth.verifyCode.mutate({
+        emailOrPhone: pendingVerification.emailOrPhone,
+        code,
+      });
+
       const verifiedAuth: UserAuth = {
         ...pendingVerification,
         isVerified: true,
@@ -168,6 +179,12 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     if (!pendingVerification) {
       throw new Error('No pending verification');
     }
+    
+    await trpcClient.auth.sendVerification.mutate({
+      emailOrPhone: pendingVerification.emailOrPhone,
+      authMethod: pendingVerification.authMethod,
+    });
+    
     console.log('Resending verification code to:', pendingVerification.emailOrPhone);
   }, [pendingVerification]);
 

@@ -37,10 +37,6 @@ export default function VerifyScreen() {
       router.replace('/auth/login');
       return;
     }
-
-    const mockCode = '123456';
-    console.log(`Mock verification code for ${pendingVerification.authMethod}: ${mockCode}`);
-    console.log(`Sent to: ${pendingVerification.emailOrPhone}`);
   }, [pendingVerification, router]);
 
   useEffect(() => {
@@ -95,11 +91,6 @@ export default function VerifyScreen() {
     setIsLoading(true);
 
     try {
-      const mockCode = '123456';
-      if (enteredCode !== mockCode) {
-        throw new Error('Invalid verification code. Please try again.');
-      }
-
       await verifyAccount(enteredCode);
       router.replace('/onboarding');
     } catch (err: any) {
@@ -118,10 +109,6 @@ export default function VerifyScreen() {
       setResendTimer(60);
       setCanResend(false);
       setError('');
-      
-      const mockCode = '123456';
-      console.log(`Resent verification code: ${mockCode}`);
-      console.log(`Sent to: ${pendingVerification?.emailOrPhone}`);
     } catch (err: any) {
       setError(err.message || 'Failed to resend code. Please try again.');
       console.error('Resend error:', err);
