@@ -27,7 +27,7 @@ import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, clearProfile } = useUserProfile();
+  const { profile, updateProfile, logout } = useUserProfile();
   const [changeCityModalVisible, setChangeCityModalVisible] = useState(false);
   const [policiesModalVisible, setPoliciesModalVisible] = useState(false);
 
@@ -82,8 +82,8 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await clearProfile();
-              router.replace('/onboarding');
+              await logout();
+              router.replace('/auth/login');
             } catch {
               Alert.alert('Error', 'Failed to logout');
             }

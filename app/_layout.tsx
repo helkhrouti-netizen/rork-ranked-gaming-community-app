@@ -13,21 +13,24 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { isLoading, isOnboarded } = useUserProfile();
+  const { isLoading, isAuthenticated, isOnboarded } = useUserProfile();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
 
+    const inAuth = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
 
-    if (!isOnboarded && !inOnboarding) {
+    if (!isAuthenticated && !inAuth) {
+      router.replace('/auth/login');
+    } else if (isAuthenticated && !isOnboarded && !inOnboarding) {
       router.replace('/onboarding');
-    } else if (isOnboarded && inOnboarding) {
+    } else if (isAuthenticated && isOnboarded && (inAuth || inOnboarding)) {
       router.replace('/(tabs)');
     }
-  }, [isLoading, isOnboarded, segments, router]);
+  }, [isLoading, isAuthenticated, isOnboarded, segments, router]);
 
   if (isLoading) {
     return (
@@ -39,6 +42,8 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
+      <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
