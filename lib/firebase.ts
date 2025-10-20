@@ -1,4 +1,4 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
@@ -83,7 +83,16 @@ console.log('Firebase config:', {
   apiKey: firebaseConfig.apiKey.substring(0, 10) + '...',
 });
 
-export const app: FirebaseApp = initializeApp(firebaseConfig);
+let app: FirebaseApp;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
+} else {
+  app = getApp();
+  console.log('Firebase already initialized, reusing existing instance');
+}
+
+export { app };
 export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
 
@@ -93,5 +102,3 @@ export const getFirebaseConfig = () => ({
   apiKey: firebaseConfig.apiKey,
   environment: process.env.NODE_ENV || 'development',
 });
-
-console.log('Firebase initialized successfully');
