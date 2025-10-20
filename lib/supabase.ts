@@ -10,15 +10,11 @@ const getEnvVariable = (key: string): string | undefined => {
 };
 
 const getSupabaseUrl = (): string => {
-  const url = 
-    getEnvVariable('SUPABASE_URL') || 
-    getEnvVariable('EXPO_PUBLIC_SUPABASE_URL') ||
-    getEnvVariable('NEXT_PUBLIC_SUPABASE_URL') ||
-    getEnvVariable('PUBLIC_SUPABASE_URL');
+  const url = getEnvVariable('EXPO_PUBLIC_SUPABASE_URL');
   
   if (!url) {
     throw new Error(
-      'Missing SUPABASE_URL environment variable. Please set SUPABASE_URL or EXPO_PUBLIC_SUPABASE_URL in your .env file.'
+      'Missing EXPO_PUBLIC_SUPABASE_URL environment variable. Please set it in your .env file.'
     );
   }
   
@@ -26,21 +22,16 @@ const getSupabaseUrl = (): string => {
 };
 
 const getSupabaseAnonKey = (): string => {
-  const key = 
-    getEnvVariable('SUPABASE_ANON_KEY') || 
-    getEnvVariable('EXPO_PUBLIC_SUPABASE_ANON_KEY') ||
-    getEnvVariable('NEXT_PUBLIC_SUPABASE_ANON_KEY') ||
-    getEnvVariable('PUBLIC_SUPABASE_ANON_KEY') ||
-    getEnvVariable('SUPABASE_KEY');
+  const key = getEnvVariable('EXPO_PUBLIC_SUPABASE_ANON_KEY');
   
   if (!key) {
     throw new Error(
-      'Missing SUPABASE_ANON_KEY environment variable. Please set SUPABASE_ANON_KEY or EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file.'
+      'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable. Please set it in your .env file.'
     );
   }
   
   return key;
-};
+}
 
 const supabaseUrl = getSupabaseUrl();
 const supabaseAnonKey = getSupabaseAnonKey();
