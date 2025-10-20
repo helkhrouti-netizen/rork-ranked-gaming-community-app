@@ -1,18 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-
-const getEnvVariable = (key: string): string | undefined => {
-  if (Platform.OS === 'web') {
-    return (window as any)[key] || process.env[key];
-  }
-  return process.env[key];
-};
 
 const getSupabaseUrl = (): string => {
-  const url = getEnvVariable('EXPO_PUBLIC_SUPABASE_URL');
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   
   if (!url) {
+    console.error('EXPO_PUBLIC_SUPABASE_URL is undefined');
+    console.error('process.env:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
     throw new Error(
       'Missing EXPO_PUBLIC_SUPABASE_URL environment variable. Please set it in your .env file.'
     );
@@ -22,9 +16,11 @@ const getSupabaseUrl = (): string => {
 };
 
 const getSupabaseAnonKey = (): string => {
-  const key = getEnvVariable('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   
   if (!key) {
+    console.error('EXPO_PUBLIC_SUPABASE_ANON_KEY is undefined');
+    console.error('process.env:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
     throw new Error(
       'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable. Please set it in your .env file.'
     );
