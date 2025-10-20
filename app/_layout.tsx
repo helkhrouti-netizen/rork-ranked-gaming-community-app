@@ -6,7 +6,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { UserProfileProvider, useUserProfile } from "@/contexts/UserProfileContext";
 import Colors from "@/constants/colors";
-import { trpc, trpcClient } from "@/lib/trpc";
+import { trpc } from "@/lib/trpc";
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,7 +74,16 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [trpcReactClient] = useState(() => trpcClient);
+  const [trpcReactClient] = useState(() => 
+    trpc.createClient({
+      links: [
+        httpBatchLink({
+          url: `${process.env.EXPO_PUBLIC_RORK_API_BASE_URL || ''}/api/trpc`,
+          transformer: superjson,
+        }),
+      ],
+    })
+  );
 
   useEffect(() => {
     SplashScreen.hideAsync();
