@@ -17,6 +17,7 @@ interface TestResult {
 
 export default function DebugSupabaseScreen() {
   const router = useRouter();
+  const [isAutoRunComplete, setIsAutoRunComplete] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<TestResult>({ status: 'idle', message: '' });
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -84,8 +85,12 @@ export default function DebugSupabaseScreen() {
   }, [config.url, config.anonKey, maskedKey]);
 
   useEffect(() => {
-    testConnection();
-  }, [testConnection]);
+    if (!isAutoRunComplete) {
+      console.log('Auto-running Supabase connection test on mount');
+      testConnection();
+      setIsAutoRunComplete(true);
+    }
+  }, []);
 
   const StatusIcon = ({ status }: { status: TestStatus }) => {
     switch (status) {
@@ -102,12 +107,16 @@ export default function DebugSupabaseScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/auth/login' as any)}
             testID="back-button"
           >
             <ChevronLeft color={Colors.colors.textPrimary} size={24} />

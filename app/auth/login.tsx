@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Mail, Lock } from 'lucide-react-native';
+import { Mail, Lock, Bug } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -63,6 +63,15 @@ export default function LoginScreen() {
         colors={[Colors.colors.background, Colors.colors.surface]}
         style={StyleSheet.absoluteFill}
       />
+      
+      <TouchableOpacity
+        style={styles.debugButton}
+        onPress={() => router.push('/debug-supabase' as any)}
+        activeOpacity={0.7}
+      >
+        <Bug color={Colors.colors.textSecondary} size={16} />
+        <Text style={styles.debugButtonText}>Diagnostics</Text>
+      </TouchableOpacity>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -313,5 +322,25 @@ const styles = StyleSheet.create({
   signupButtonTextBold: {
     fontWeight: '700' as const,
     color: Colors.colors.primary,
+  },
+  debugButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+    zIndex: 10,
+  },
+  debugButtonText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
   },
 });
