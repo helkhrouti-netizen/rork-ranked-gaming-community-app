@@ -57,18 +57,22 @@ export default function PlayScreen() {
     try {
       setIsLoadingMatches(true);
       setErrorMessage('');
+      
       const { data: matchesData, error } = await supabase
         .from('matches')
         .select(`
           *,
-          host:users!matches_host_id_fkey(*),
-          match_players(user:users(*))
+          host:users!host_id(*),
+          match_players(
+            user:users(*)
+          )
         `)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading matches:', error);
-        setErrorMessage(error.message || 'Failed to load matches. Please try again.');
+        console.error('Error loading matches:', JSON.stringify(error, null, 2));
+        const errorMsg = error.message || error.details || error.hint || 'Failed to load matches. Please try again.';
+        setErrorMessage(errorMsg);
         setMatches([]);
         return;
       }
@@ -107,8 +111,9 @@ export default function PlayScreen() {
 
       setMatches(formattedMatches);
     } catch (error: any) {
-      console.error('Error loading matches:', error);
-      setErrorMessage(error?.message || 'An unexpected error occurred while loading matches.');
+      console.error('Error loading matches:', JSON.stringify(error, null, 2));
+      const errorMsg = error?.message || error?.error_description || JSON.stringify(error) || 'An unexpected error occurred while loading matches.';
+      setErrorMessage(errorMsg);
     } finally {
       setIsLoadingMatches(false);
     }
