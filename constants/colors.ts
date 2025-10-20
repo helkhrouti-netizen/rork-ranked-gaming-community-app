@@ -10,6 +10,7 @@ const colors = {
   primaryDark: '#4F46E5',
   success: '#10B981',
   danger: '#EF4444',
+  error: '#EF4444',
   warning: '#F59E0B',
   accent: '#8B5CF6',
 };

@@ -35,6 +35,7 @@ export default function PlayScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(true);
   const [isQuickMatchLoading, setIsQuickMatchLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const rankInfo = profile?.rank ? RANK_INFO[profile.rank.division] : RANK_INFO['Cuivre'];
 
@@ -55,6 +56,7 @@ export default function PlayScreen() {
   const loadMatches = async () => {
     try {
       setIsLoadingMatches(true);
+      setErrorMessage('');
       const { data: matchesData, error } = await supabase
         .from('matches')
         .select(`
@@ -66,6 +68,8 @@ export default function PlayScreen() {
 
       if (error) {
         console.error('Error loading matches:', error);
+        setErrorMessage(error.message || 'Failed to load matches. Please try again.');
+        setMatches([]);
         return;
       }
 
@@ -102,8 +106,9 @@ export default function PlayScreen() {
       }));
 
       setMatches(formattedMatches);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading matches:', error);
+      setErrorMessage(error?.message || 'An unexpected error occurred while loading matches.');
     } finally {
       setIsLoadingMatches(false);
     }
@@ -294,6 +299,15 @@ export default function PlayScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={Colors.colors.primary} size="large" />
               <Text style={styles.loadingText}>Loading matches...</Text>
+            </View>
+          ) : errorMessage ? (
+            <View style={styles.errorContainer}>
+              <AlertCircle color={Colors.colors.error} size={48} />
+              <Text style={styles.errorText}>Failed to load matches</Text>
+              <Text style={styles.errorSubtext}>{errorMessage}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={loadMatches}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.matchList}>
@@ -710,5 +724,35 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: 14,
     color: Colors.colors.textSecondary,
+  },
+  errorContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.error,
+    marginTop: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.colors.primary,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
   },
 });
