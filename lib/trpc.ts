@@ -3,8 +3,6 @@ import { createTRPCClient, httpLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
 
-export const trpc = createTRPCReact<AppRouter>();
-
 const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
     return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
@@ -15,14 +13,9 @@ const getBaseUrl = () => {
   );
 };
 
-export const trpcReactClient = trpc.createClient({
-  links: [
-    httpLink({
-      url: `${getBaseUrl()}/api/trpc`,
-      transformer: superjson,
-    }),
-  ],
-});
+export const trpcReactClient = createTRPCReact<AppRouter>();
+
+export const trpc = trpcReactClient;
 
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
