@@ -8,11 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Mail, Phone, Lock, User } from 'lucide-react-native';
+import { Mail, User, Lock, Phone } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -22,9 +23,9 @@ export default function SignupScreen() {
   const router = useRouter();
   const { signup } = useUserProfile();
 
-  const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
-  const [emailOrPhone, setEmailOrPhone] = useState<string>('');
   const [username, setUsername] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -38,17 +39,12 @@ export default function SignupScreen() {
       return;
     }
 
-    if (username.trim().length < 3) {
-      setError('Username must be at least 3 characters');
+    if (!email.trim()) {
+      setError('Please enter your email');
       return;
     }
 
-    if (!emailOrPhone.trim()) {
-      setError(`Please enter your ${signupMethod === 'email' ? 'email' : 'phone number'}`);
-      return;
-    }
-
-    if (signupMethod === 'email' && !emailOrPhone.includes('@')) {
+    if (!email.includes('@')) {
       setError('Please enter a valid email address');
       return;
     }
@@ -58,7 +54,7 @@ export default function SignupScreen() {
       return;
     }
 
-    if (password.trim().length < 6) {
+    if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
@@ -70,8 +66,23 @@ export default function SignupScreen() {
 
     setIsLoading(true);
     try {
-      await signup(emailOrPhone.trim(), password.trim(), username.trim(), signupMethod);
-      router.replace('/auth/verify');
+      await signup(
+        email.trim().toLowerCase(),
+        password.trim(),
+        username.trim(),
+        phoneNumber.trim() || undefined
+      );
+
+      Alert.alert(
+        'Check your email',
+        'We sent you a confirmation link. Please check your inbox to verify your email address.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/auth/login' as any),
+          },
+        ]
+      );
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
       console.error('Signup error:', err);
@@ -105,70 +116,6 @@ export default function SignupScreen() {
           </View>
 
           <View style={styles.form}>
-            <View style={styles.methodSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.methodButton,
-                  signupMethod === 'email' && styles.methodButtonActive,
-                ]}
-                onPress={() => {
-                  setSignupMethod('email');
-                  setEmailOrPhone('');
-                  setError('');
-                }}
-                activeOpacity={0.7}
-              >
-                <Mail
-                  color={
-                    signupMethod === 'email'
-                      ? Colors.colors.textPrimary
-                      : Colors.colors.textSecondary
-                  }
-                  size={20}
-                  strokeWidth={2.5}
-                />
-                <Text
-                  style={[
-                    styles.methodButtonText,
-                    signupMethod === 'email' && styles.methodButtonTextActive,
-                  ]}
-                >
-                  Email
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.methodButton,
-                  signupMethod === 'phone' && styles.methodButtonActive,
-                ]}
-                onPress={() => {
-                  setSignupMethod('phone');
-                  setEmailOrPhone('');
-                  setError('');
-                }}
-                activeOpacity={0.7}
-              >
-                <Phone
-                  color={
-                    signupMethod === 'phone'
-                      ? Colors.colors.textPrimary
-                      : Colors.colors.textSecondary
-                  }
-                  size={20}
-                  strokeWidth={2.5}
-                />
-                <Text
-                  style={[
-                    styles.methodButtonText,
-                    signupMethod === 'phone' && styles.methodButtonTextActive,
-                  ]}
-                >
-                  Phone
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             <View style={styles.inputContainer}>
               <View style={styles.inputIcon}>
                 <User color={Colors.colors.primary} size={20} strokeWidth={2.5} />
@@ -179,7 +126,7 @@ export default function SignupScreen() {
                   style={styles.input}
                   value={username}
                   onChangeText={setUsername}
-                  placeholder="Enter your username"
+                  placeholder="Choose a username"
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -189,29 +136,36 @@ export default function SignupScreen() {
 
             <View style={styles.inputContainer}>
               <View style={styles.inputIcon}>
-                {signupMethod === 'email' ? (
-                  <Mail color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                ) : (
-                  <Phone color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                )}
+                <Mail color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>
-                  {signupMethod === 'email' ? 'Email Address' : 'Phone Number'}
-                </Text>
+                <Text style={styles.inputLabel}>Email Address</Text>
                 <TextInput
                   style={styles.input}
-                  value={emailOrPhone}
-                  onChangeText={setEmailOrPhone}
-                  placeholder={
-                    signupMethod === 'email'
-                      ? 'example@email.com'
-                      : '+212 6XX XXX XXX'
-                  }
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="example@email.com"
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  keyboardType={signupMethod === 'email' ? 'email-address' : 'phone-pad'}
+                  keyboardType="email-address"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Phone color={Colors.colors.primary} size={20} strokeWidth={2.5} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  placeholder="+212 6XX XXX XXX"
+                  placeholderTextColor={Colors.colors.textMuted}
+                  keyboardType="phone-pad"
                 />
               </View>
             </View>
@@ -226,7 +180,7 @@ export default function SignupScreen() {
                   style={styles.input}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Create a password"
+                  placeholder="At least 6 characters"
                   placeholderTextColor={Colors.colors.textMuted}
                   secureTextEntry
                   autoCapitalize="none"
@@ -245,7 +199,7 @@ export default function SignupScreen() {
                   style={styles.input}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  placeholder="Confirm your password"
+                  placeholder="Re-enter your password"
                   placeholderTextColor={Colors.colors.textMuted}
                   secureTextEntry
                   autoCapitalize="none"
@@ -263,30 +217,16 @@ export default function SignupScreen() {
             <TouchableOpacity
               style={[
                 styles.signupButton,
-                (!emailOrPhone.trim() ||
-                  !username.trim() ||
-                  !password.trim() ||
-                  !confirmPassword.trim() ||
-                  isLoading) &&
+                (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading) &&
                   styles.signupButtonDisabled,
               ]}
               onPress={handleSignup}
-              disabled={
-                !emailOrPhone.trim() ||
-                !username.trim() ||
-                !password.trim() ||
-                !confirmPassword.trim() ||
-                isLoading
-              }
+              disabled={!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading}
               activeOpacity={0.8}
             >
               <LinearGradient
                 colors={
-                  !emailOrPhone.trim() ||
-                  !username.trim() ||
-                  !password.trim() ||
-                  !confirmPassword.trim() ||
-                  isLoading
+                  !username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading
                     ? [Colors.colors.surfaceLight, Colors.colors.surfaceLight]
                     : [Colors.colors.primary, Colors.colors.primaryDark]
                 }
@@ -297,11 +237,7 @@ export default function SignupScreen() {
                 <Text
                   style={[
                     styles.signupButtonText,
-                    (!emailOrPhone.trim() ||
-                      !username.trim() ||
-                      !password.trim() ||
-                      !confirmPassword.trim() ||
-                      isLoading) &&
+                    (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading) &&
                       styles.signupButtonTextDisabled,
                   ]}
                 >
@@ -318,7 +254,7 @@ export default function SignupScreen() {
 
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => router.replace('/auth/login')}
+              onPress={() => router.replace('/auth/login' as any)}
               activeOpacity={0.8}
             >
               <Text style={styles.loginButtonText}>
@@ -368,35 +304,6 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
-  },
-  methodSelector: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  methodButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.colors.surface,
-    borderRadius: 16,
-    paddingVertical: 16,
-    borderWidth: 2,
-    borderColor: Colors.colors.border,
-  },
-  methodButtonActive: {
-    borderColor: Colors.colors.primary,
-    backgroundColor: Colors.colors.primary + '10',
-  },
-  methodButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.colors.textSecondary,
-  },
-  methodButtonTextActive: {
-    color: Colors.colors.textPrimary,
   },
   inputContainer: {
     flexDirection: 'row',

@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Mail, Phone, Lock } from 'lucide-react-native';
+import { Mail, Lock } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -22,8 +22,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login } = useUserProfile();
 
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
-  const [emailOrPhone, setEmailOrPhone] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -31,8 +30,13 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setError('');
 
-    if (!emailOrPhone.trim()) {
-      setError(`Please enter your ${loginMethod === 'email' ? 'email' : 'phone number'}`);
+    if (!email.trim()) {
+      setError('Please enter your email');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -41,14 +45,9 @@ export default function LoginScreen() {
       return;
     }
 
-    if (loginMethod === 'email' && !emailOrPhone.includes('@')) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      await login(emailOrPhone.trim(), password.trim(), loginMethod);
+      await login(email.trim().toLowerCase(), password.trim());
       router.replace('/(tabs)');
     } catch (err: any) {
       setError(err.message || 'Failed to log in. Please check your credentials.');
@@ -83,95 +82,21 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.form}>
-            <View style={styles.methodSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.methodButton,
-                  loginMethod === 'email' && styles.methodButtonActive,
-                ]}
-                onPress={() => {
-                  setLoginMethod('email');
-                  setEmailOrPhone('');
-                  setError('');
-                }}
-                activeOpacity={0.7}
-              >
-                <Mail
-                  color={
-                    loginMethod === 'email'
-                      ? Colors.colors.textPrimary
-                      : Colors.colors.textSecondary
-                  }
-                  size={20}
-                  strokeWidth={2.5}
-                />
-                <Text
-                  style={[
-                    styles.methodButtonText,
-                    loginMethod === 'email' && styles.methodButtonTextActive,
-                  ]}
-                >
-                  Email
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.methodButton,
-                  loginMethod === 'phone' && styles.methodButtonActive,
-                ]}
-                onPress={() => {
-                  setLoginMethod('phone');
-                  setEmailOrPhone('');
-                  setError('');
-                }}
-                activeOpacity={0.7}
-              >
-                <Phone
-                  color={
-                    loginMethod === 'phone'
-                      ? Colors.colors.textPrimary
-                      : Colors.colors.textSecondary
-                  }
-                  size={20}
-                  strokeWidth={2.5}
-                />
-                <Text
-                  style={[
-                    styles.methodButtonText,
-                    loginMethod === 'phone' && styles.methodButtonTextActive,
-                  ]}
-                >
-                  Phone
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             <View style={styles.inputContainer}>
               <View style={styles.inputIcon}>
-                {loginMethod === 'email' ? (
-                  <Mail color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                ) : (
-                  <Phone color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                )}
+                <Mail color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>
-                  {loginMethod === 'email' ? 'Email Address' : 'Phone Number'}
-                </Text>
+                <Text style={styles.inputLabel}>Email Address</Text>
                 <TextInput
                   style={styles.input}
-                  value={emailOrPhone}
-                  onChangeText={setEmailOrPhone}
-                  placeholder={
-                    loginMethod === 'email'
-                      ? 'example@email.com'
-                      : '+212 6XX XXX XXX'
-                  }
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="example@email.com"
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  keyboardType={loginMethod === 'email' ? 'email-address' : 'phone-pad'}
+                  keyboardType="email-address"
                 />
               </View>
             </View>
@@ -204,16 +129,16 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                (!emailOrPhone.trim() || !password.trim() || isLoading) &&
+                (!email.trim() || !password.trim() || isLoading) &&
                   styles.loginButtonDisabled,
               ]}
               onPress={handleLogin}
-              disabled={!emailOrPhone.trim() || !password.trim() || isLoading}
+              disabled={!email.trim() || !password.trim() || isLoading}
               activeOpacity={0.8}
             >
               <LinearGradient
                 colors={
-                  !emailOrPhone.trim() || !password.trim() || isLoading
+                  !email.trim() || !password.trim() || isLoading
                     ? [Colors.colors.surfaceLight, Colors.colors.surfaceLight]
                     : [Colors.colors.primary, Colors.colors.primaryDark]
                 }
@@ -224,7 +149,7 @@ export default function LoginScreen() {
                 <Text
                   style={[
                     styles.loginButtonText,
-                    (!emailOrPhone.trim() || !password.trim() || isLoading) &&
+                    (!email.trim() || !password.trim() || isLoading) &&
                       styles.loginButtonTextDisabled,
                   ]}
                 >
@@ -241,7 +166,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={styles.signupButton}
-              onPress={() => router.replace('/auth/signup')}
+              onPress={() => router.replace('/auth/signup' as any)}
               activeOpacity={0.8}
             >
               <Text style={styles.signupButtonText}>
@@ -291,35 +216,6 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
-  },
-  methodSelector: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  methodButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.colors.surface,
-    borderRadius: 16,
-    paddingVertical: 16,
-    borderWidth: 2,
-    borderColor: Colors.colors.border,
-  },
-  methodButtonActive: {
-    borderColor: Colors.colors.primary,
-    backgroundColor: Colors.colors.primary + '10',
-  },
-  methodButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.colors.textSecondary,
-  },
-  methodButtonTextActive: {
-    color: Colors.colors.textPrimary,
   },
   inputContainer: {
     flexDirection: 'row',

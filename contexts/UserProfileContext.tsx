@@ -3,20 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { MoroccoCity } from '@/constants/cities';
 import { Rank } from '@/constants/ranks';
-import { trpcClient } from '@/lib/trpc';
+import { supabase } from '@/lib/supabase';
+import { Session, User } from '@supabase/supabase-js';
 
 const USER_PROFILE_KEY = '@user_profile';
-const USER_AUTH_KEY = '@user_auth';
-
-export interface UserAuth {
-  id: string;
-  emailOrPhone: string;
-  authMethod: 'email' | 'phone';
-  password: string;
-  username: string;
-  isVerified: boolean;
-  createdAt: string;
-}
 
 export interface UserProfile {
   id: string;
@@ -32,32 +22,55 @@ export interface UserProfile {
 }
 
 export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
-  const [auth, setAuth] = useState<UserAuth | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
-  const [pendingVerification, setPendingVerification] = useState<UserAuth | null>(null);
 
   useEffect(() => {
-    loadProfile();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsAuthenticated(!!session);
+      if (session) {
+        loadProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session?.user?.email);
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsAuthenticated(!!session);
+      
+      if (session) {
+        loadProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setIsOnboarded(false);
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfile = async () => {
+  const loadProfile = async (userId: string) => {
     try {
-      const storedAuth = await AsyncStorage.getItem(USER_AUTH_KEY);
       const storedProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
-      
-      if (storedAuth) {
-        const parsedAuth = JSON.parse(storedAuth);
-        setAuth(parsedAuth);
-        setIsAuthenticated(true);
-      }
-      
       if (storedProfile) {
         const parsedProfile = JSON.parse(storedProfile);
-        setProfile(parsedProfile);
-        setIsOnboarded(true);
+        if (parsedProfile.id === userId) {
+          setProfile(parsedProfile);
+          setIsOnboarded(true);
+        }
       }
     } catch (error) {
       console.error('Failed to load user profile:', error);
@@ -67,134 +80,98 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   };
 
   const signup = useCallback(async (
-    emailOrPhone: string,
+    email: string,
     password: string,
     username: string,
-    authMethod: 'email' | 'phone'
+    phoneNumber?: string
   ) => {
     try {
-      const storedAuth = await AsyncStorage.getItem(USER_AUTH_KEY);
-      if (storedAuth) {
-        const existingAuth = JSON.parse(storedAuth);
-        if (existingAuth.emailOrPhone === emailOrPhone) {
-          throw new Error('This account already exists. Please log in.');
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            phone_number: phoneNumber,
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          throw new Error('Email already in use. Please try logging in instead.');
+        }
+        throw error;
+      }
+
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        throw new Error('Email already in use. Please try logging in instead.');
+      }
+
+      if (data.user) {
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              username: username,
+              phone_number: phoneNumber,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+
+        if (insertError) {
+          console.error('Failed to insert user into users table:', insertError);
         }
       }
 
-      const newAuth: UserAuth = {
-        id: `user_${Date.now()}`,
-        emailOrPhone,
-        authMethod,
-        password,
-        username,
-        isVerified: false,
-        createdAt: new Date().toISOString(),
-      };
-
-      await trpcClient.auth.sendVerification.mutate({
-        emailOrPhone,
-        authMethod,
-      });
-
-      setPendingVerification(newAuth);
-      console.log('Account created, pending verification:', { ...newAuth, password: '***' });
-      return newAuth;
-    } catch (error) {
-      console.error('Failed to create account:', error);
+      console.log('Signup successful. Check your inbox to confirm your email.');
+      return data;
+    } catch (error: any) {
+      console.error('Signup error:', error);
       throw error;
     }
   }, []);
 
   const login = useCallback(async (
-    emailOrPhone: string,
-    password: string,
-    authMethod: 'email' | 'phone'
+    email: string,
+    password: string
   ) => {
     try {
-      const storedAuth = await AsyncStorage.getItem(USER_AUTH_KEY);
-      
-      if (!storedAuth) {
-        throw new Error('Account not found. Please sign up.');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error('Please check your inbox to confirm your email before logging in.');
+        }
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Incorrect email or password. Please try again.');
+        }
+        throw error;
       }
 
-      const existingAuth: UserAuth = JSON.parse(storedAuth);
-
-      if (existingAuth.emailOrPhone !== emailOrPhone) {
-        throw new Error('Incorrect email/phone or password.');
+      if (!data.user?.email_confirmed_at) {
+        await supabase.auth.signOut();
+        throw new Error('Please check your inbox to confirm your email before logging in.');
       }
 
-      if (existingAuth.password !== password) {
-        throw new Error('Incorrect email/phone or password.');
-      }
-
-      if (!existingAuth.isVerified) {
-        throw new Error('Account not verified. Please verify your account first.');
-      }
-
-      setAuth(existingAuth);
-      setIsAuthenticated(true);
-
-      const storedProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
-      if (storedProfile) {
-        const parsedProfile = JSON.parse(storedProfile);
-        setProfile(parsedProfile);
-        setIsOnboarded(true);
-      }
-
-      console.log('Login successful:', { ...existingAuth, password: '***' });
-    } catch (error) {
-      console.error('Failed to log in:', error);
+      console.log('Login successful:', data.user.email);
+      return data;
+    } catch (error: any) {
+      console.error('Login error:', error);
       throw error;
     }
   }, []);
 
-  const verifyAccount = useCallback(async (code: string) => {
-    try {
-      if (!pendingVerification) {
-        throw new Error('No pending verification');
-      }
-
-      await trpcClient.auth.verifyCode.mutate({
-        emailOrPhone: pendingVerification.emailOrPhone,
-        code,
-      });
-
-      const verifiedAuth: UserAuth = {
-        ...pendingVerification,
-        isVerified: true,
-      };
-
-      await AsyncStorage.setItem(USER_AUTH_KEY, JSON.stringify(verifiedAuth));
-      setAuth(verifiedAuth);
-      setIsAuthenticated(true);
-      setPendingVerification(null);
-      console.log('Account verified:', { ...verifiedAuth, password: '***' });
-    } catch (error) {
-      console.error('Failed to verify account:', error);
-      throw error;
-    }
-  }, [pendingVerification]);
-
-  const resendVerificationCode = useCallback(async () => {
-    if (!pendingVerification) {
-      throw new Error('No pending verification');
-    }
-    
-    await trpcClient.auth.sendVerification.mutate({
-      emailOrPhone: pendingVerification.emailOrPhone,
-      authMethod: pendingVerification.authMethod,
-    });
-    
-    console.log('Resending verification code to:', pendingVerification.emailOrPhone);
-  }, [pendingVerification]);
-
   const logout = useCallback(async () => {
     try {
-      setAuth(null);
+      await supabase.auth.signOut();
       setProfile(null);
-      setIsAuthenticated(false);
       setIsOnboarded(false);
-      setPendingVerification(null);
       console.log('Logged out');
     } catch (error) {
       console.error('Failed to log out:', error);
@@ -209,12 +186,12 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     profilePicture?: string
   ) => {
     try {
-      if (!auth) {
+      if (!user) {
         throw new Error('User must be authenticated to create profile');
       }
 
       const newProfile: UserProfile = {
-        id: auth.id,
+        id: user.id,
         username,
         profilePicture,
         city,
@@ -234,7 +211,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       console.error('Failed to create user profile:', error);
       throw error;
     }
-  }, [auth]);
+  }, [user]);
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!profile) return;
@@ -250,21 +227,17 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     }
   }, [profile]);
 
-
-
   return useMemo(() => ({
-    auth,
+    session,
+    user,
     profile,
     isLoading,
     isAuthenticated,
     isOnboarded,
-    pendingVerification,
     signup,
     login,
     logout,
-    verifyAccount,
-    resendVerificationCode,
     createProfile,
     updateProfile,
-  }), [auth, profile, isLoading, isAuthenticated, isOnboarded, pendingVerification, signup, login, logout, verifyAccount, resendVerificationCode, createProfile, updateProfile]);
+  }), [session, user, profile, isLoading, isAuthenticated, isOnboarded, signup, login, logout, createProfile, updateProfile]);
 });
