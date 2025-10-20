@@ -27,8 +27,13 @@ export default function DebugSupabaseScreen() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const config = getSupabaseConfig();
+  
+  const rawUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const rawKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  const isEnvVarMissing = !rawUrl || !rawKey;
+  
   const urlHost = config.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const maskedKey = `${config.anonKey.substring(0, 4)}...${config.anonKey.substring(config.anonKey.length - 4)}`;
+  const maskedKey = config.anonKey ? `${config.anonKey.substring(0, 4)}...${config.anonKey.substring(config.anonKey.length - 4)}` : 'NOT SET';
 
   const copyToClipboard = async (text: string, field: string) => {
     await Clipboard.setStringAsync(text);
@@ -41,8 +46,20 @@ export default function DebugSupabaseScreen() {
 
     try {
       console.log('Testing Supabase connection...');
+      console.log('Raw env EXPO_PUBLIC_SUPABASE_URL:', rawUrl);
+      console.log('Raw env EXPO_PUBLIC_SUPABASE_ANON_KEY (first 20):', rawKey?.substring(0, 20));
       console.log('Using URL:', config.url);
-      console.log('Using Key (first 20):', config.anonKey.substring(0, 20));
+      console.log('Using Key (first 20):', config.anonKey?.substring(0, 20));
+      console.log('All env vars with SUPABASE:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
+      
+      if (isEnvVarMissing) {
+        throw new Error(
+          `Environment variables not set correctly:\n` +
+          `EXPO_PUBLIC_SUPABASE_URL: ${rawUrl ? 'SET' : 'MISSING'}\n` +
+          `EXPO_PUBLIC_SUPABASE_ANON_KEY: ${rawKey ? 'SET' : 'MISSING'}\n\n` +
+          `These must be set in your deployment platform (Vercel, Expo, etc.) and marked as Public/Client-side accessible.`
+        );
+      }
 
       const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
 
@@ -156,35 +173,58 @@ export default function DebugSupabaseScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Configuration</Text>
+            
+            {isEnvVarMissing && (
+              <View style={styles.warningBox}>
+                <AlertCircle color={Colors.colors.warning} size={20} />
+                <Text style={styles.warningText}>Environment variables not properly set in deployment platform</Text>
+              </View>
+            )}
+            
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>EXPO_PUBLIC_SUPABASE_URL:</Text>
               <View style={styles.infoValueContainer}>
-                <Text style={styles.infoValue}>{config.url}</Text>
-                <TouchableOpacity
-                  onPress={() => copyToClipboard(config.url, 'url')}
-                  style={styles.copyButton}
-                >
-                  <Copy color={copiedField === 'url' ? Colors.colors.success : Colors.colors.textSecondary} size={16} />
-                  {copiedField === 'url' && <Text style={styles.copiedText}>Copied!</Text>}
-                </TouchableOpacity>
+                <Text style={[styles.infoValue, !rawUrl && styles.infoValueMissing]}>
+                  {rawUrl || '❌ NOT SET'}
+                </Text>
+                {rawUrl && (
+                  <TouchableOpacity
+                    onPress={() => copyToClipboard(config.url, 'url')}
+                    style={styles.copyButton}
+                  >
+                    <Copy color={copiedField === 'url' ? Colors.colors.success : Colors.colors.textSecondary} size={16} />
+                    {copiedField === 'url' && <Text style={styles.copiedText}>Copied!</Text>}
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Host:</Text>
-              <Text style={styles.infoValue}>{urlHost}</Text>
+              <Text style={styles.infoValue}>{rawUrl ? urlHost : 'N/A'}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>EXPO_PUBLIC_SUPABASE_ANON_KEY:</Text>
               <View style={styles.infoValueContainer}>
-                <Text style={styles.infoValue}>{maskedKey}</Text>
-                <TouchableOpacity
-                  onPress={() => copyToClipboard(config.anonKey, 'key')}
-                  style={styles.copyButton}
-                >
-                  <Copy color={copiedField === 'key' ? Colors.colors.success : Colors.colors.textSecondary} size={16} />
-                  {copiedField === 'key' && <Text style={styles.copiedText}>Copied!</Text>}
-                </TouchableOpacity>
+                <Text style={[styles.infoValue, !rawKey && styles.infoValueMissing]}>
+                  {maskedKey}
+                </Text>
+                {rawKey && (
+                  <TouchableOpacity
+                    onPress={() => copyToClipboard(config.anonKey, 'key')}
+                    style={styles.copyButton}
+                  >
+                    <Copy color={copiedField === 'key' ? Colors.colors.success : Colors.colors.textSecondary} size={16} />
+                    {copiedField === 'key' && <Text style={styles.copiedText}>Copied!</Text>}
+                  </TouchableOpacity>
+                )}
               </View>
+            </View>
+            
+            <View style={styles.envVarsFoundBox}>
+              <Text style={styles.envVarsFoundLabel}>Env vars found in process.env:</Text>
+              <Text style={styles.envVarsFoundValue}>
+                {Object.keys(process.env).filter(k => k.includes('SUPABASE')).join(', ') || 'None found'}
+              </Text>
             </View>
           </View>
 
@@ -254,10 +294,12 @@ export default function DebugSupabaseScreen() {
             <Text style={styles.sectionTitle}>Troubleshooting</Text>
             <View style={styles.troubleshootingBox}>
               <Text style={styles.troubleshootingText}>If you see &quot;Invalid API key&quot; errors:</Text>
-              <Text style={styles.troubleshootingStep}>1. Check that EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set correctly in your .env file</Text>
-              <Text style={styles.troubleshootingStep}>2. Ensure the anon key is valid and not expired</Text>
-              <Text style={styles.troubleshootingStep}>3. Verify RLS policies allow anon access to the users table</Text>
-              <Text style={styles.troubleshootingStep}>4. Restart the development server after changing .env</Text>
+              <Text style={styles.troubleshootingStep}>1. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your deployment platform (Vercel, Expo, etc.)</Text>
+              <Text style={styles.troubleshootingStep}>2. Mark them as Public/Client-side accessible</Text>
+              <Text style={styles.troubleshootingStep}>3. Ensure the anon key is valid and not expired</Text>
+              <Text style={styles.troubleshootingStep}>4. Verify RLS policies allow anon access to the users table</Text>
+              <Text style={styles.troubleshootingStep}>5. Restart/redeploy after adding env vars</Text>
+              <Text style={styles.troubleshootingStep}>6. For local dev: ensure .env file has these values</Text>
             </View>
           </View>
         </ScrollView>
@@ -445,5 +487,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.colors.textSecondary,
     lineHeight: 18,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.colors.warning + '20',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.colors.warning,
+    marginBottom: 16,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.colors.warning,
+  },
+  infoValueMissing: {
+    color: Colors.colors.danger,
+    fontWeight: '700' as const,
+  },
+  envVarsFoundBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: Colors.colors.surfaceLight,
+    borderRadius: 8,
+  },
+  envVarsFoundLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
+    marginBottom: 4,
+  },
+  envVarsFoundValue: {
+    fontSize: 11,
+    color: Colors.colors.textPrimary,
+    fontFamily: 'monospace' as const,
   },
 });
