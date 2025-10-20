@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle, XCircle, AlertCircle, Copy } from 'lucide-react-native';
@@ -13,6 +13,11 @@ interface TestResult {
   status: TestStatus;
   message: string;
   details?: string;
+  errorCode?: string;
+  envVarsUsed?: {
+    url: string;
+    keyPreview: string;
+  };
 }
 
 export default function DebugSupabaseScreen() {
@@ -31,17 +36,6 @@ export default function DebugSupabaseScreen() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const showToast = (message: string, isSuccess: boolean) => {
-    if (Platform.OS === 'web') {
-      alert(message);
-    } else {
-      Alert.alert(
-        isSuccess ? 'Connection Successful' : 'Connection Failed',
-        message
-      );
-    }
-  };
-
   const testConnection = useCallback(async () => {
     setTestResult({ status: 'testing', message: 'Testing connection...' });
 
@@ -54,33 +48,52 @@ export default function DebugSupabaseScreen() {
 
       if (error) {
         console.error('Connection test failed:', error);
-        const errorDetails = `Error: ${error.message}\n\nCode: ${error.code || 'N/A'}\n\nHint: ${error.hint || 'N/A'}\n\nUsing URL: ${config.url}\nUsing Key: ${maskedKey}`;
+        const errorMessage = error.message || 'Unknown error';
+        const errorCode = error.code || 'N/A';
+        const errorHint = error.hint || 'N/A';
+        
+        const detailsText = `Error Message: ${errorMessage}\n\nError Code: ${errorCode}\n\nHint: ${errorHint}\n\nDetails: ${error.details || 'N/A'}`;
+        
         setTestResult({
           status: 'error',
-          message: 'Connection Failed',
-          details: errorDetails,
+          message: errorMessage,
+          details: detailsText,
+          errorCode: errorCode,
+          envVarsUsed: {
+            url: config.url,
+            keyPreview: maskedKey,
+          },
         });
-        showToast(`❌ ${error.message}`, false);
         return;
       }
 
       console.log('Connection test successful');
       setTestResult({
         status: 'success',
-        message: '✅ Connected Successfully',
+        message: 'Connected Successfully',
         details: 'Successfully connected to Supabase and queried the users table.',
+        envVarsUsed: {
+          url: config.url,
+          keyPreview: maskedKey,
+        },
       });
-      showToast('✅ Connected Successfully', true);
     } catch (err) {
       console.error('Connection test exception:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      const errorDetails = `Exception: ${errorMessage}\n\nUsing URL: ${config.url}\nUsing Key: ${maskedKey}`;
+      const errorStack = err instanceof Error ? err.stack : undefined;
+      
+      const detailsText = `Exception: ${errorMessage}${errorStack ? '\n\nStack: ' + errorStack : ''}`;
+      
       setTestResult({
         status: 'error',
-        message: 'Connection Failed',
-        details: errorDetails,
+        message: errorMessage,
+        details: detailsText,
+        errorCode: 'EXCEPTION',
+        envVarsUsed: {
+          url: config.url,
+          keyPreview: maskedKey,
+        },
       });
-      showToast(`❌ ${errorMessage}`, false);
     }
   }, [config.url, config.anonKey, maskedKey]);
 
@@ -95,13 +108,13 @@ export default function DebugSupabaseScreen() {
   const StatusIcon = ({ status }: { status: TestStatus }) => {
     switch (status) {
       case 'success':
-        return <CheckCircle color={Colors.colors.success} size={24} />;
+        return <CheckCircle color={Colors.colors.success} size={28} />;
       case 'error':
-        return <XCircle color={Colors.colors.danger} size={24} />;
+        return <XCircle color={Colors.colors.danger} size={28} />;
       case 'testing':
         return <ActivityIndicator size="small" color={Colors.colors.primary} />;
       default:
-        return <AlertCircle color={Colors.colors.textSecondary} size={24} />;
+        return <AlertCircle color={Colors.colors.textSecondary} size={28} />;
     }
   };
 
@@ -137,7 +150,7 @@ export default function DebugSupabaseScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Configuration</Text>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>SUPABASE_URL:</Text>
+              <Text style={styles.infoLabel}>EXPO_PUBLIC_SUPABASE_URL:</Text>
               <View style={styles.infoValueContainer}>
                 <Text style={styles.infoValue}>{config.url}</Text>
                 <TouchableOpacity
@@ -154,7 +167,7 @@ export default function DebugSupabaseScreen() {
               <Text style={styles.infoValue}>{urlHost}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>SUPABASE_ANON_KEY:</Text>
+              <Text style={styles.infoLabel}>EXPO_PUBLIC_SUPABASE_ANON_KEY:</Text>
               <View style={styles.infoValueContainer}>
                 <Text style={styles.infoValue}>{maskedKey}</Text>
                 <TouchableOpacity
@@ -177,28 +190,54 @@ export default function DebugSupabaseScreen() {
               testID="test-connection-button"
             >
               <Text style={styles.testButtonText}>
-                {testResult.status === 'testing' ? 'Testing...' : 'Test Supabase Connection'}
+                {testResult.status === 'testing' ? 'Testing...' : 'Run Test Again'}
               </Text>
             </TouchableOpacity>
 
             {testResult.status !== 'idle' && (
               <View style={[
-                styles.resultContainer,
+                styles.resultCard,
                 testResult.status === 'success' && styles.resultSuccess,
                 testResult.status === 'error' && styles.resultError,
               ]}>
                 <View style={styles.resultHeader}>
                   <StatusIcon status={testResult.status} />
-                  <Text style={[
-                    styles.resultMessage,
-                    testResult.status === 'success' && styles.resultMessageSuccess,
-                    testResult.status === 'error' && styles.resultMessageError,
-                  ]}>
-                    {testResult.message}
-                  </Text>
+                  <View style={styles.resultHeaderText}>
+                    <Text style={[
+                      styles.resultTitle,
+                      testResult.status === 'success' && styles.resultTitleSuccess,
+                      testResult.status === 'error' && styles.resultTitleError,
+                    ]}>
+                      {testResult.status === 'success' ? '✅ Connected' : '❌ Failed'}
+                    </Text>
+                    <Text style={styles.resultMessage}>{testResult.message}</Text>
+                  </View>
                 </View>
+
+                {testResult.errorCode && (
+                  <View style={styles.infoBox}>
+                    <Text style={styles.infoBoxLabel}>Error Code:</Text>
+                    <Text style={styles.infoBoxValue}>{testResult.errorCode}</Text>
+                  </View>
+                )}
+
+                {testResult.envVarsUsed && (
+                  <View style={styles.infoBox}>
+                    <Text style={styles.infoBoxLabel}>Environment Variables Used:</Text>
+                    <Text style={styles.infoBoxValue}>• EXPO_PUBLIC_SUPABASE_URL</Text>
+                    <Text style={styles.infoBoxValue}>• EXPO_PUBLIC_SUPABASE_ANON_KEY</Text>
+                    <Text style={[styles.infoBoxValue, { marginTop: 8 }]}>URL: {testResult.envVarsUsed.url}</Text>
+                    <Text style={styles.infoBoxValue}>Key: {testResult.envVarsUsed.keyPreview}</Text>
+                  </View>
+                )}
+
                 {testResult.details && (
-                  <Text style={styles.resultDetails}>{testResult.details}</Text>
+                  <View style={styles.detailsBox}>
+                    <Text style={styles.detailsLabel}>Details:</Text>
+                    <ScrollView style={styles.detailsScroll} nestedScrollEnabled>
+                      <Text style={styles.detailsText}>{testResult.details}</Text>
+                    </ScrollView>
+                  </View>
                 )}
               </View>
             )}
@@ -208,7 +247,7 @@ export default function DebugSupabaseScreen() {
             <Text style={styles.sectionTitle}>Troubleshooting</Text>
             <View style={styles.troubleshootingBox}>
               <Text style={styles.troubleshootingText}>If you see &quot;Invalid API key&quot; errors:</Text>
-              <Text style={styles.troubleshootingStep}>1. Check that SUPABASE_URL and SUPABASE_ANON_KEY are set correctly in your environment</Text>
+              <Text style={styles.troubleshootingStep}>1. Check that EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set correctly in your .env file</Text>
               <Text style={styles.troubleshootingStep}>2. Ensure the anon key is valid and not expired</Text>
               <Text style={styles.troubleshootingStep}>3. Verify RLS policies allow anon access to the users table</Text>
               <Text style={styles.troubleshootingStep}>4. Restart the development server after changing .env</Text>
@@ -310,10 +349,11 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#FFFFFF',
   },
-  resultContainer: {
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
+  resultCard: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 16,
   },
   resultSuccess: {
     backgroundColor: Colors.colors.success + '15',
@@ -325,22 +365,62 @@ const styles = StyleSheet.create({
   },
   resultHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  resultMessage: {
-    fontSize: 15,
-    fontWeight: '600' as const,
+  resultHeaderText: {
+    flex: 1,
+    gap: 4,
   },
-  resultMessageSuccess: {
+  resultTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+  },
+  resultTitleSuccess: {
     color: Colors.colors.success,
   },
-  resultMessageError: {
+  resultTitleError: {
     color: Colors.colors.danger,
   },
-  resultDetails: {
+  resultMessage: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: Colors.colors.textPrimary,
+  },
+  infoBox: {
+    backgroundColor: Colors.colors.surfaceLight,
+    padding: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  infoBoxLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
+    marginBottom: 4,
+  },
+  infoBoxValue: {
     fontSize: 13,
+    color: Colors.colors.textPrimary,
+    fontFamily: 'monospace' as const,
+  },
+  detailsBox: {
+    backgroundColor: Colors.colors.surfaceLight,
+    padding: 12,
+    borderRadius: 8,
+    maxHeight: 200,
+  },
+  detailsLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
+    marginBottom: 8,
+  },
+  detailsScroll: {
+    maxHeight: 160,
+  },
+  detailsText: {
+    fontSize: 12,
     color: Colors.colors.textPrimary,
     fontFamily: 'monospace' as const,
     lineHeight: 18,
