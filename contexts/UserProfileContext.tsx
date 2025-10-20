@@ -3,8 +3,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { MoroccoCity } from '@/constants/cities';
 import { Rank } from '@/constants/ranks';
-import { supabase } from '@/lib/supabase';
-import { Session, User } from '@supabase/supabase-js';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 const USER_PROFILE_KEY = '@user_profile';
 
@@ -22,36 +35,20 @@ export interface UserProfile {
 }
 
 export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session);
-      if (session) {
-        loadProfile(session.user.id);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event, session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('Auth state changed:', firebaseUser?.email);
+      setUser(firebaseUser);
+      setIsAuthenticated(!!firebaseUser);
       
-      if (session) {
-        loadProfile(session.user.id);
+      if (firebaseUser) {
+        await loadProfile(firebaseUser.uid);
       } else {
         setProfile(null);
         setIsOnboarded(false);
@@ -59,19 +56,16 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
   }, []);
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
 
-      if (userError || !userData) {
-        console.error('Failed to load user from Supabase:', userError);
+      if (!userDoc.exists()) {
+        console.log('User document does not exist in Firestore');
         const storedProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
         if (storedProfile) {
           const parsedProfile = JSON.parse(storedProfile);
@@ -84,17 +78,18 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         return;
       }
 
+      const userData = userDoc.data();
       const userProfile: UserProfile = {
-        id: userData.id,
+        id: userDoc.id,
         username: userData.username || 'User',
-        profilePicture: userData.profile_picture,
+        profilePicture: userData.avatar,
         city: userData.city || 'CASABLANCA',
         rank: userData.rank || { division: 'Cuivre', level: 1, points: 0 },
         wins: userData.wins || 0,
         losses: userData.losses || 0,
         reputation: userData.reputation || 0,
         level: userData.level || 1,
-        createdAt: userData.created_at || new Date().toISOString(),
+        createdAt: userData.createdAt || new Date().toISOString(),
       };
 
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(userProfile));
@@ -114,50 +109,29 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     phoneNumber?: string
   ) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-            phone_number: phoneNumber,
-          },
-        },
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser = userCredential.user;
+
+      const userDocRef = doc(db, 'users', newUser.uid);
+      await setDoc(userDocRef, {
+        email: email,
+        username: username,
+        phoneNumber: phoneNumber || null,
+        createdAt: serverTimestamp(),
+        rank: { division: 'Cuivre', level: 1, points: 0 },
+        wins: 0,
+        losses: 0,
+        reputation: 0,
+        level: 1,
       });
 
-      if (error) {
-        if (error.message.includes('already registered')) {
-          throw new Error('Email already in use. Please try logging in instead.');
-        }
-        throw error;
-      }
-
-      if (data.user && data.user.identities && data.user.identities.length === 0) {
-        throw new Error('Email already in use. Please try logging in instead.');
-      }
-
-      if (data.user) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              email: email,
-              username: username,
-              phone_number: phoneNumber,
-              created_at: new Date().toISOString(),
-            },
-          ]);
-
-        if (insertError) {
-          console.error('Failed to insert user into users table:', insertError);
-        }
-      }
-
-      console.log('Signup successful. Check your inbox to confirm your email.');
-      return data;
+      console.log('Signup successful. User created:', newUser.email);
+      return { user: newUser };
     } catch (error: any) {
       console.error('Signup error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Email already in use. Please try logging in instead.');
+      }
       throw error;
     }
   }, []);
@@ -167,37 +141,24 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     password: string
   ) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          throw new Error('Please check your inbox to confirm your email before logging in.');
-        }
-        if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Incorrect email or password. Please try again.');
-        }
-        throw error;
-      }
-
-      if (!data.user?.email_confirmed_at) {
-        await supabase.auth.signOut();
-        throw new Error('Please check your inbox to confirm your email before logging in.');
-      }
-
-      console.log('Login successful:', data.user.email);
-      return data;
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Login successful:', userCredential.user.email);
+      return { user: userCredential.user };
     } catch (error: any) {
       console.error('Login error:', error);
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        throw new Error('Incorrect email or password. Please try again.');
+      }
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email. Please sign up first.');
+      }
       throw error;
     }
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      await signOut(auth);
       setProfile(null);
       setIsOnboarded(false);
       console.log('Logged out');
@@ -219,7 +180,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       }
 
       const newProfile: UserProfile = {
-        id: user.id,
+        id: user.uid,
         username,
         profilePicture,
         city,
@@ -231,29 +192,22 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         createdAt: new Date().toISOString(),
       };
 
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          username,
-          city,
-          rank,
-          profile_picture: profilePicture,
-          wins: 0,
-          losses: 0,
-          reputation: 0,
-          level: 1,
-        })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Failed to update user in Supabase:', updateError);
-        throw updateError;
-      }
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        username,
+        city,
+        rank,
+        avatar: profilePicture || null,
+        wins: 0,
+        losses: 0,
+        reputation: 0,
+        level: 1,
+      });
 
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(newProfile));
       setProfile(newProfile);
       setIsOnboarded(true);
-      console.log('Profile created and synced with Supabase:', newProfile);
+      console.log('Profile created and synced with Firestore:', newProfile);
     } catch (error) {
       console.error('Failed to create user profile:', error);
       throw error;
@@ -266,30 +220,24 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     try {
       const updatedProfile = { ...profile, ...updates };
 
-      const supabaseUpdates: Record<string, any> = {};
-      if (updates.username) supabaseUpdates.username = updates.username;
-      if (updates.city) supabaseUpdates.city = updates.city;
-      if (updates.rank) supabaseUpdates.rank = updates.rank;
-      if (updates.profilePicture !== undefined) supabaseUpdates.profile_picture = updates.profilePicture;
-      if (updates.wins !== undefined) supabaseUpdates.wins = updates.wins;
-      if (updates.losses !== undefined) supabaseUpdates.losses = updates.losses;
-      if (updates.reputation !== undefined) supabaseUpdates.reputation = updates.reputation;
-      if (updates.level !== undefined) supabaseUpdates.level = updates.level;
+      const firestoreUpdates: Record<string, any> = {};
+      if (updates.username) firestoreUpdates.username = updates.username;
+      if (updates.city) firestoreUpdates.city = updates.city;
+      if (updates.rank) firestoreUpdates.rank = updates.rank;
+      if (updates.profilePicture !== undefined) firestoreUpdates.avatar = updates.profilePicture;
+      if (updates.wins !== undefined) firestoreUpdates.wins = updates.wins;
+      if (updates.losses !== undefined) firestoreUpdates.losses = updates.losses;
+      if (updates.reputation !== undefined) firestoreUpdates.reputation = updates.reputation;
+      if (updates.level !== undefined) firestoreUpdates.level = updates.level;
 
-      if (Object.keys(supabaseUpdates).length > 0) {
-        const { error: updateError } = await supabase
-          .from('users')
-          .update(supabaseUpdates)
-          .eq('id', profile.id);
-
-        if (updateError) {
-          console.error('Failed to update user in Supabase:', updateError);
-        }
+      if (Object.keys(firestoreUpdates).length > 0) {
+        const userDocRef = doc(db, 'users', profile.id);
+        await updateDoc(userDocRef, firestoreUpdates);
       }
 
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
-      console.log('Profile updated and synced with Supabase:', updatedProfile);
+      console.log('Profile updated and synced with Firestore:', updatedProfile);
     } catch (error) {
       console.error('Failed to update user profile:', error);
       throw error;
@@ -297,7 +245,6 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   }, [profile]);
 
   return useMemo(() => ({
-    session,
     user,
     profile,
     isLoading,
@@ -308,5 +255,5 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     logout,
     createProfile,
     updateProfile,
-  }), [session, user, profile, isLoading, isAuthenticated, isOnboarded, signup, login, logout, createProfile, updateProfile]);
+  }), [user, profile, isLoading, isAuthenticated, isOnboarded, signup, login, logout, createProfile, updateProfile]);
 });

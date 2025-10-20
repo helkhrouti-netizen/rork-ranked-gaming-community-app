@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, Bug } from 'lucide-react-native';
+import { Mail, Lock } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -27,20 +27,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
-  const envDebug = useMemo(() => {
-    const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-    
-    const urlHost = url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : null;
-    const keyPreview = key ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}` : null;
-    
-    return {
-      hasUrl: !!url,
-      hasKey: !!key,
-      urlHost,
-      keyPreview,
-    };
-  }, []);
+
 
   const handleLogin = async () => {
     setError('');
@@ -78,34 +65,6 @@ export default function LoginScreen() {
         colors={[Colors.colors.background, Colors.colors.surface]}
         style={StyleSheet.absoluteFill}
       />
-      
-      <View style={[
-        styles.envDebugBanner,
-        { paddingTop: insets.top + 8 },
-        (!envDebug.hasUrl || !envDebug.hasKey) && styles.envDebugBannerError,
-      ]}>
-        {!envDebug.hasUrl || !envDebug.hasKey ? (
-          <Text style={styles.envDebugTextError}>
-            ❌ Missing: {!envDebug.hasUrl ? 'EXPO_PUBLIC_SUPABASE_URL' : ''}{!envDebug.hasUrl && !envDebug.hasKey ? ', ' : ''}{!envDebug.hasKey ? 'EXPO_PUBLIC_SUPABASE_ANON_KEY' : ''}
-          </Text>
-        ) : (
-          <Text style={styles.envDebugText}>
-            🟢 {envDebug.urlHost} • {envDebug.keyPreview}
-          </Text>
-        )}
-      </View>
-      
-      <TouchableOpacity
-        style={[styles.debugButton, { top: insets.top + 48 }]}
-        onPress={() => {
-          console.log('Navigating to /debug-supabase');
-          router.push('/debug-supabase' as any);
-        }}
-        activeOpacity={0.7}
-      >
-        <Bug color={Colors.colors.textSecondary} size={16} />
-        <Text style={styles.debugButtonText}>Diagnostics</Text>
-      </TouchableOpacity>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -357,52 +316,5 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.colors.primary,
   },
-  debugButton: {
-    position: 'absolute',
-    right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: Colors.colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
-    zIndex: 10,
-  },
-  debugButtonText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: Colors.colors.textSecondary,
-  },
-  envDebugBanner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.colors.success + '30',
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.colors.success + '40',
-    zIndex: 5,
-  },
-  envDebugBannerError: {
-    backgroundColor: Colors.colors.danger + '30',
-    borderBottomColor: Colors.colors.danger + '40',
-  },
-  envDebugText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    color: Colors.colors.success,
-    textAlign: 'center',
-    fontFamily: 'monospace' as const,
-  },
-  envDebugTextError: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    color: Colors.colors.danger,
-    textAlign: 'center',
-  },
+
 });

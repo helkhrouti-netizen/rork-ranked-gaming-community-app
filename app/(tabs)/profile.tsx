@@ -209,13 +209,13 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Developer</Text>
           <TouchableOpacity
             style={styles.diagnosticsButton}
-            onPress={() => router.push('/debug-supabase')}
-            testID="supabase-diagnostics-button"
+            onPress={() => router.push('/firebase-diagnostics' as any)}
+            testID="firebase-diagnostics-button"
           >
             <View style={styles.diagnosticsIcon}>
               <Activity color={Colors.colors.primary} size={20} />
             </View>
-            <Text style={styles.diagnosticsButtonText}>Supabase Diagnostics</Text>
+            <Text style={styles.diagnosticsButtonText}>Firebase Diagnostics</Text>
           </TouchableOpacity>
         </View>
 

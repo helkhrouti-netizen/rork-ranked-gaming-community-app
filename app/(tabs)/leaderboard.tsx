@@ -14,7 +14,8 @@ import { Trophy, Medal, Award } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO, RankDivision, RankLevel } from '@/constants/ranks';
 import { Player } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy as firestoreOrderBy, onSnapshot, limit } from 'firebase/firestore';
 
 type FilterOption = RankDivision | 'all' | `${RankDivision}-${RankLevel}`;
 
@@ -25,50 +26,43 @@ export default function LeaderboardScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    loadPlayers();
-    const subscription = supabase
-      .channel('leaderboard_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
-        loadPlayers();
-      })
-      .subscribe();
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, firestoreOrderBy('rank.points', 'desc'), limit(100));
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [selectedFilter]);
-
-  const loadPlayers = async () => {
-    try {
-      setIsLoading(true);
-      const { data: usersData, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('rank->points', { ascending: false });
-
-      if (error) {
-        console.error('Error loading players:', error);
-        return;
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        try {
+          const formattedPlayers: Player[] = snapshot.docs.map((doc) => {
+            const userData = doc.data();
+            return {
+              id: doc.id,
+              username: userData.username || 'User',
+              rank: userData.rank || { division: 'Cuivre', level: 1, points: 0 },
+              city: userData.city || 'CASABLANCA',
+              wins: userData.wins || 0,
+              losses: userData.losses || 0,
+              reputation: userData.reputation || 0,
+              level: userData.level || 1,
+            };
+          });
+          setPlayers(formattedPlayers);
+          setIsLoading(false);
+        } catch (error) {
+          console.error('Error loading players:', error);
+          setIsLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error listening to players:', error);
+        setIsLoading(false);
       }
+    );
 
-      const formattedPlayers: Player[] = (usersData || []).map((user: any) => ({
-        id: user.id,
-        username: user.username || 'User',
-        rank: user.rank || { division: 'Cuivre', level: 1, points: 0 },
-        city: user.city || 'CASABLANCA',
-        wins: user.wins || 0,
-        losses: user.losses || 0,
-        reputation: user.reputation || 0,
-        level: user.level || 1,
-      }));
+    return () => unsubscribe();
+  }, []);
 
-      setPlayers(formattedPlayers);
-    } catch (error) {
-      console.error('Error loading players:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   const filteredPlayers = players.filter((player) => {
     if (selectedFilter === 'all') return true;

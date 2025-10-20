@@ -20,12 +20,25 @@ import {
   Play,
   AlertCircle,
 } from 'lucide-react-native';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  getDocs,
+  doc,
+  getDoc,
+  serverTimestamp,
+  limit,
+} from 'firebase/firestore';
 
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match } from '@/types';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
@@ -40,84 +53,88 @@ export default function PlayScreen() {
   const rankInfo = profile?.rank ? RANK_INFO[profile.rank.division] : RANK_INFO['Cuivre'];
 
   useEffect(() => {
-    loadMatches();
-    const subscription = supabase
-      .channel('matches_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
-        loadMatches();
-      })
-      .subscribe();
+    const matchesRef = collection(db, 'matches');
+    const q = query(matchesRef, orderBy('createdAt', 'desc'), limit(50));
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+    const unsubscribe = onSnapshot(
+      q,
+      async (snapshot) => {
+        try {
+          setErrorMessage('');
+          const matchesData = await Promise.all(
+            snapshot.docs.map(async (matchDoc) => {
+              const matchData = matchDoc.data();
+              
+              const hostDocRef = doc(db, 'users', matchData.hostId);
+              const hostDoc = await getDoc(hostDocRef);
+              const hostData = hostDoc.exists() ? hostDoc.data() : null;
 
-  const loadMatches = async () => {
-    try {
-      setIsLoadingMatches(true);
-      setErrorMessage('');
-      
-      const { data: matchesData, error } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          host:users!host_id(*),
-          match_players(
-            user:users(*)
-          )
-        `)
-        .order('created_at', { ascending: false });
+              const matchPlayersRef = collection(db, 'matchPlayers');
+              const playersQuery = query(matchPlayersRef, where('matchId', '==', matchDoc.id));
+              const playersSnapshot = await getDocs(playersQuery);
+              
+              const players = await Promise.all(
+                playersSnapshot.docs.map(async (playerDoc) => {
+                  const playerData = playerDoc.data();
+                  const userDocRef = doc(db, 'users', playerData.userId);
+                  const userDoc = await getDoc(userDocRef);
+                  const userData = userDoc.exists() ? userDoc.data() : null;
+                  
+                  return {
+                    id: playerData.userId,
+                    username: userData?.username || 'User',
+                    rank: userData?.rank || { division: 'Cuivre', level: 1, points: 0 },
+                    city: userData?.city || 'CASABLANCA',
+                    wins: userData?.wins || 0,
+                    losses: userData?.losses || 0,
+                    reputation: userData?.reputation || 0,
+                    level: userData?.level || 1,
+                  };
+                })
+              );
 
-      if (error) {
-        console.error('Error loading matches:', JSON.stringify(error, null, 2));
-        const errorMsg = error.message || error.details || error.hint || 'Failed to load matches. Please try again.';
-        setErrorMessage(errorMsg);
-        setMatches([]);
-        return;
+              return {
+                id: matchDoc.id,
+                type: matchData.type || 'official',
+                status: matchData.status || 'waiting',
+                host: {
+                  id: matchData.hostId,
+                  username: hostData?.username || 'User',
+                  rank: hostData?.rank || { division: 'Cuivre', level: 1, points: 0 },
+                  city: hostData?.city || 'CASABLANCA',
+                  wins: hostData?.wins || 0,
+                  losses: hostData?.losses || 0,
+                  reputation: hostData?.reputation || 0,
+                  level: hostData?.level || 1,
+                },
+                players,
+                maxPlayers: matchData.maxPlayers || 4,
+                field: matchData.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
+                scheduledTime: matchData.scheduledTime ? new Date(matchData.scheduledTime.seconds * 1000) : undefined,
+                pointReward: matchData.pointReward || 50,
+                pointPenalty: matchData.pointPenalty || 30,
+                createdAt: matchData.createdAt ? new Date(matchData.createdAt.seconds * 1000) : new Date(),
+              };
+            })
+          );
+
+          setMatches(matchesData);
+          setIsLoadingMatches(false);
+        } catch (error: any) {
+          console.error('Error loading matches:', error);
+          setErrorMessage(error?.message || 'Failed to load matches');
+          setIsLoadingMatches(false);
+        }
+      },
+      (error) => {
+        console.error('Error listening to matches:', error);
+        setErrorMessage(error.message || 'Failed to load matches');
+        setIsLoadingMatches(false);
       }
+    );
 
-      const formattedMatches: Match[] = (matchesData || []).map((match: any) => ({
-        id: match.id,
-        type: match.type,
-        status: match.status,
-        host: {
-          id: match.host.id,
-          username: match.host.username || 'User',
-          rank: match.host.rank || { division: 'Cuivre', level: 1, points: 0 },
-          city: match.host.city || 'CASABLANCA',
-          wins: match.host.wins || 0,
-          losses: match.host.losses || 0,
-          reputation: match.host.reputation || 0,
-          level: match.host.level || 1,
-        },
-        players: (match.match_players || []).map((mp: any) => ({
-          id: mp.user.id,
-          username: mp.user.username || 'User',
-          rank: mp.user.rank || { division: 'Cuivre', level: 1, points: 0 },
-          city: mp.user.city || 'CASABLANCA',
-          wins: mp.user.wins || 0,
-          losses: mp.user.losses || 0,
-          reputation: mp.user.reputation || 0,
-          level: mp.user.level || 1,
-        })),
-        maxPlayers: match.max_players,
-        field: match.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
-        scheduledTime: match.scheduled_time ? new Date(match.scheduled_time) : undefined,
-        pointReward: match.point_reward,
-        pointPenalty: match.point_penalty,
-        createdAt: new Date(match.created_at),
-      }));
-
-      setMatches(formattedMatches);
-    } catch (error: any) {
-      console.error('Error loading matches:', JSON.stringify(error, null, 2));
-      const errorMsg = error?.message || error?.error_description || JSON.stringify(error) || 'An unexpected error occurred while loading matches.';
-      setErrorMessage(errorMsg);
-    } finally {
-      setIsLoadingMatches(false);
-    }
-  };
+    return () => unsubscribe();
+  }, []);
 
   const handleQuickMatch = async () => {
     if (!profile) {
@@ -128,71 +145,64 @@ export default function PlayScreen() {
     try {
       setIsQuickMatchLoading(true);
 
-      const { data: availableMatches, error: searchError } = await supabase
-        .from('matches')
-        .select('id, max_players, match_players(count)')
-        .eq('status', 'waiting')
-        .order('created_at', { ascending: true });
+      const matchesRef = collection(db, 'matches');
+      const availableMatchesQuery = query(
+        matchesRef,
+        where('status', '==', 'waiting'),
+        orderBy('createdAt', 'asc'),
+        limit(10)
+      );
 
-      if (searchError) {
-        console.error('Error searching for matches:', searchError);
-        throw searchError;
-      }
+      const availableMatchesSnapshot = await getDocs(availableMatchesQuery);
 
       let matchToJoin = null;
-      if (availableMatches && availableMatches.length > 0) {
-        for (const match of availableMatches) {
-          const playerCount = match.match_players?.[0]?.count || 0;
-          if (playerCount < match.max_players) {
-            matchToJoin = match.id;
-            break;
-          }
+      for (const matchDoc of availableMatchesSnapshot.docs) {
+        const matchData = matchDoc.data();
+        const matchPlayersRef = collection(db, 'matchPlayers');
+        const playersQuery = query(matchPlayersRef, where('matchId', '==', matchDoc.id));
+        const playersSnapshot = await getDocs(playersQuery);
+        
+        if (playersSnapshot.size < (matchData.maxPlayers || 4)) {
+          matchToJoin = matchDoc.id;
+          break;
         }
       }
 
       if (matchToJoin) {
-        const { error: joinError } = await supabase
-          .from('match_players')
-          .insert([{ match_id: matchToJoin, user_id: profile.id }]);
-
-        if (joinError) {
-          console.error('Error joining match:', joinError);
-          throw joinError;
-        }
+        const matchPlayersRef = collection(db, 'matchPlayers');
+        await addDoc(matchPlayersRef, {
+          matchId: matchToJoin,
+          userId: profile.id,
+          joinedAt: serverTimestamp(),
+        });
 
         router.push(`/match/${matchToJoin}`);
       } else {
-        const { data: newMatch, error: createError } = await supabase
-          .from('matches')
-          .insert([{
-            host_id: profile.id,
-            type: 'official',
-            status: 'waiting',
-            max_players: 4,
-            point_reward: 50,
-            point_penalty: 30,
-            field: { name: 'Quick Match Field', address: 'Auto-selected', city: profile.city },
-          }])
-          .select()
-          .single();
+        const matchesRef = collection(db, 'matches');
+        const newMatchDoc = await addDoc(matchesRef, {
+          hostId: profile.id,
+          type: 'official',
+          status: 'waiting',
+          maxPlayers: 4,
+          pointReward: 50,
+          pointPenalty: 30,
+          field: { name: 'Quick Match Field', address: 'Auto-selected', city: profile.city },
+          tier: profile.rank.division,
+          createdAt: serverTimestamp(),
+        });
 
-        if (createError) {
-          console.error('Error creating match:', createError);
-          throw createError;
-        }
+        const matchPlayersRef = collection(db, 'matchPlayers');
+        await addDoc(matchPlayersRef, {
+          matchId: newMatchDoc.id,
+          userId: profile.id,
+          joinedAt: serverTimestamp(),
+        });
 
-        const { error: joinError } = await supabase
-          .from('match_players')
-          .insert([{ match_id: newMatch.id, user_id: profile.id }]);
-
-        if (joinError) {
-          console.error('Error joining created match:', joinError);
-        }
-
-        router.push(`/match/${newMatch.id}`);
+        router.push(`/match/${newMatchDoc.id}`);
       }
     } catch (error) {
       console.error('Quick match error:', error);
+      setErrorMessage('Failed to join/create match. Please try again.');
     } finally {
       setIsQuickMatchLoading(false);
     }
@@ -310,15 +320,12 @@ export default function PlayScreen() {
               <AlertCircle color={Colors.colors.error} size={48} />
               <Text style={styles.errorText}>Failed to load matches</Text>
               <Text style={styles.errorSubtext}>{errorMessage}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={loadMatches}>
-                <Text style={styles.retryButtonText}>Retry</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.matchList}>
               {filteredMatches.length > 0 ? (
                 filteredMatches.map((match) => (
-                  <MatchCard key={match.id} match={match} onUpdate={loadMatches} />
+                  <MatchCard key={match.id} match={match} />
                 ))
               ) : (
                 <View style={styles.emptyState}>
@@ -334,7 +341,7 @@ export default function PlayScreen() {
   );
 }
 
-function MatchCard({ match, onUpdate }: { match: Match; onUpdate: () => void }) {
+function MatchCard({ match }: { match: Match }) {
   const router = useRouter();
   const hostRankInfo = RANK_INFO[match.host.rank.division];
   const isOfficial = match.type === 'official';
@@ -747,17 +754,5 @@ const styles = StyleSheet.create({
     color: Colors.colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 20,
-  },
-  retryButton: {
-    marginTop: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: Colors.colors.primary,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.colors.textPrimary,
   },
 });
