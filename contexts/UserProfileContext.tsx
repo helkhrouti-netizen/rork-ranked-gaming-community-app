@@ -64,14 +64,42 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
 
   const loadProfile = async (userId: string) => {
     try {
-      const storedProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
-      if (storedProfile) {
-        const parsedProfile = JSON.parse(storedProfile);
-        if (parsedProfile.id === userId) {
-          setProfile(parsedProfile);
-          setIsOnboarded(true);
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData) {
+        console.error('Failed to load user from Supabase:', userError);
+        const storedProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
+        if (storedProfile) {
+          const parsedProfile = JSON.parse(storedProfile);
+          if (parsedProfile.id === userId) {
+            setProfile(parsedProfile);
+            setIsOnboarded(true);
+          }
         }
+        setIsLoading(false);
+        return;
       }
+
+      const userProfile: UserProfile = {
+        id: userData.id,
+        username: userData.username || 'User',
+        profilePicture: userData.profile_picture,
+        city: userData.city || 'CASABLANCA',
+        rank: userData.rank || { division: 'Cuivre', level: 1, points: 0 },
+        wins: userData.wins || 0,
+        losses: userData.losses || 0,
+        reputation: userData.reputation || 0,
+        level: userData.level || 1,
+        createdAt: userData.created_at || new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(userProfile));
+      setProfile(userProfile);
+      setIsOnboarded(!!userData.username && !!userData.city);
     } catch (error) {
       console.error('Failed to load user profile:', error);
     } finally {
@@ -203,10 +231,29 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         createdAt: new Date().toISOString(),
       };
 
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          username,
+          city,
+          rank,
+          profile_picture: profilePicture,
+          wins: 0,
+          losses: 0,
+          reputation: 0,
+          level: 1,
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to update user in Supabase:', updateError);
+        throw updateError;
+      }
+
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(newProfile));
       setProfile(newProfile);
       setIsOnboarded(true);
-      console.log('Profile created:', newProfile);
+      console.log('Profile created and synced with Supabase:', newProfile);
     } catch (error) {
       console.error('Failed to create user profile:', error);
       throw error;
@@ -218,9 +265,31 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
 
     try {
       const updatedProfile = { ...profile, ...updates };
+
+      const supabaseUpdates: Record<string, any> = {};
+      if (updates.username) supabaseUpdates.username = updates.username;
+      if (updates.city) supabaseUpdates.city = updates.city;
+      if (updates.rank) supabaseUpdates.rank = updates.rank;
+      if (updates.profilePicture !== undefined) supabaseUpdates.profile_picture = updates.profilePicture;
+      if (updates.wins !== undefined) supabaseUpdates.wins = updates.wins;
+      if (updates.losses !== undefined) supabaseUpdates.losses = updates.losses;
+      if (updates.reputation !== undefined) supabaseUpdates.reputation = updates.reputation;
+      if (updates.level !== undefined) supabaseUpdates.level = updates.level;
+
+      if (Object.keys(supabaseUpdates).length > 0) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update(supabaseUpdates)
+          .eq('id', profile.id);
+
+        if (updateError) {
+          console.error('Failed to update user in Supabase:', updateError);
+        }
+      }
+
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
-      console.log('Profile updated:', updatedProfile);
+      console.log('Profile updated and synced with Supabase:', updatedProfile);
     } catch (error) {
       console.error('Failed to update user profile:', error);
       throw error;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import {
   View,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,19 +22,173 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { MOCK_MATCHES, MOCK_CURRENT_PLAYER } from '@/mocks/data';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match } from '@/types';
+import { useUserProfile } from '@/contexts/UserProfileContext';
+import { supabase } from '@/lib/supabase';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { profile, isLoading: profileLoading } = useUserProfile();
   const [matchFilter, setMatchFilter] = useState<'all' | 'official' | 'friendly'>('all');
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(true);
+  const [isQuickMatchLoading, setIsQuickMatchLoading] = useState<boolean>(false);
 
-  const currentPlayer = MOCK_CURRENT_PLAYER;
-  const rankInfo = RANK_INFO[currentPlayer.rank.division];
+  const rankInfo = profile?.rank ? RANK_INFO[profile.rank.division] : RANK_INFO['Cuivre'];
 
-  const filteredMatches = MOCK_MATCHES.filter((match) => {
+  useEffect(() => {
+    loadMatches();
+    const subscription = supabase
+      .channel('matches_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        loadMatches();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loadMatches = async () => {
+    try {
+      setIsLoadingMatches(true);
+      const { data: matchesData, error } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          host:users!matches_host_id_fkey(*),
+          match_players(user:users(*))
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading matches:', error);
+        return;
+      }
+
+      const formattedMatches: Match[] = (matchesData || []).map((match: any) => ({
+        id: match.id,
+        type: match.type,
+        status: match.status,
+        host: {
+          id: match.host.id,
+          username: match.host.username || 'User',
+          rank: match.host.rank || { division: 'Cuivre', level: 1, points: 0 },
+          city: match.host.city || 'CASABLANCA',
+          wins: match.host.wins || 0,
+          losses: match.host.losses || 0,
+          reputation: match.host.reputation || 0,
+          level: match.host.level || 1,
+        },
+        players: (match.match_players || []).map((mp: any) => ({
+          id: mp.user.id,
+          username: mp.user.username || 'User',
+          rank: mp.user.rank || { division: 'Cuivre', level: 1, points: 0 },
+          city: mp.user.city || 'CASABLANCA',
+          wins: mp.user.wins || 0,
+          losses: mp.user.losses || 0,
+          reputation: mp.user.reputation || 0,
+          level: mp.user.level || 1,
+        })),
+        maxPlayers: match.max_players,
+        field: match.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
+        scheduledTime: match.scheduled_time ? new Date(match.scheduled_time) : undefined,
+        pointReward: match.point_reward,
+        pointPenalty: match.point_penalty,
+        createdAt: new Date(match.created_at),
+      }));
+
+      setMatches(formattedMatches);
+    } catch (error) {
+      console.error('Error loading matches:', error);
+    } finally {
+      setIsLoadingMatches(false);
+    }
+  };
+
+  const handleQuickMatch = async () => {
+    if (!profile) {
+      console.log('User must be logged in to quick match');
+      return;
+    }
+
+    try {
+      setIsQuickMatchLoading(true);
+
+      const { data: availableMatches, error: searchError } = await supabase
+        .from('matches')
+        .select('id, max_players, match_players(count)')
+        .eq('status', 'waiting')
+        .order('created_at', { ascending: true });
+
+      if (searchError) {
+        console.error('Error searching for matches:', searchError);
+        throw searchError;
+      }
+
+      let matchToJoin = null;
+      if (availableMatches && availableMatches.length > 0) {
+        for (const match of availableMatches) {
+          const playerCount = match.match_players?.[0]?.count || 0;
+          if (playerCount < match.max_players) {
+            matchToJoin = match.id;
+            break;
+          }
+        }
+      }
+
+      if (matchToJoin) {
+        const { error: joinError } = await supabase
+          .from('match_players')
+          .insert([{ match_id: matchToJoin, user_id: profile.id }]);
+
+        if (joinError) {
+          console.error('Error joining match:', joinError);
+          throw joinError;
+        }
+
+        router.push(`/match/${matchToJoin}`);
+      } else {
+        const { data: newMatch, error: createError } = await supabase
+          .from('matches')
+          .insert([{
+            host_id: profile.id,
+            type: 'official',
+            status: 'waiting',
+            max_players: 4,
+            point_reward: 50,
+            point_penalty: 30,
+            field: { name: 'Quick Match Field', address: 'Auto-selected', city: profile.city },
+          }])
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating match:', createError);
+          throw createError;
+        }
+
+        const { error: joinError } = await supabase
+          .from('match_players')
+          .insert([{ match_id: newMatch.id, user_id: profile.id }]);
+
+        if (joinError) {
+          console.error('Error joining created match:', joinError);
+        }
+
+        router.push(`/match/${newMatch.id}`);
+      }
+    } catch (error) {
+      console.error('Quick match error:', error);
+    } finally {
+      setIsQuickMatchLoading(false);
+    }
+  };
+
+  const filteredMatches = matches.filter((match) => {
     if (matchFilter === 'all') return true;
     return match.type === matchFilter;
   });
@@ -44,20 +199,24 @@ export default function PlayScreen() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>Ready to compete?</Text>
-            <Text style={styles.username}>{currentPlayer.username}</Text>
+            <Text style={styles.username}>
+              {profileLoading ? 'Loading...' : profile?.username || 'Guest'}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.rankBadge}>
-            <LinearGradient
-              colors={rankInfo.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.rankGradient}
-            >
-              <Text style={styles.rankEmoji}>{rankInfo.icon}</Text>
-              <Text style={styles.rankText}>{formatRank(currentPlayer.rank)}</Text>
-              <Text style={styles.rankPoints}>{currentPlayer.rank.points} RP</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          {profile && (
+            <TouchableOpacity style={styles.rankBadge}>
+              <LinearGradient
+                colors={rankInfo.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.rankGradient}
+              >
+                <Text style={styles.rankEmoji}>{rankInfo.icon}</Text>
+                <Text style={styles.rankText}>{formatRank(profile.rank)}</Text>
+                <Text style={styles.rankPoints}>{profile.rank.points} RP</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -69,7 +228,8 @@ export default function PlayScreen() {
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={styles.primaryAction}
-            onPress={() => console.log('Quick match')}
+            onPress={handleQuickMatch}
+            disabled={isQuickMatchLoading || !profile}
           >
             <LinearGradient
               colors={[Colors.colors.primary, Colors.colors.primaryDark]}
@@ -77,9 +237,15 @@ export default function PlayScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.primaryActionGradient}
             >
-              <Zap color={Colors.colors.textPrimary} size={28} strokeWidth={2.5} />
+              {isQuickMatchLoading ? (
+                <ActivityIndicator color={Colors.colors.textPrimary} size="small" />
+              ) : (
+                <Zap color={Colors.colors.textPrimary} size={28} strokeWidth={2.5} />
+              )}
               <Text style={styles.primaryActionText}>Quick Match</Text>
-              <Text style={styles.primaryActionSubtext}>Find match instantly</Text>
+              <Text style={styles.primaryActionSubtext}>
+                {isQuickMatchLoading ? 'Finding match...' : 'Find match instantly'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -124,18 +290,32 @@ export default function PlayScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.matchList}>
-            {filteredMatches.map((match) => (
-              <MatchCard key={match.id} match={match} />
-            ))}
-          </View>
+          {isLoadingMatches ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={Colors.colors.primary} size="large" />
+              <Text style={styles.loadingText}>Loading matches...</Text>
+            </View>
+          ) : (
+            <View style={styles.matchList}>
+              {filteredMatches.length > 0 ? (
+                filteredMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} onUpdate={loadMatches} />
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No matches available</Text>
+                  <Text style={styles.emptyStateSubtext}>Create a new match or try quick match</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-function MatchCard({ match }: { match: Match }) {
+function MatchCard({ match, onUpdate }: { match: Match; onUpdate: () => void }) {
   const router = useRouter();
   const hostRankInfo = RANK_INFO[match.host.rank.division];
   const isOfficial = match.type === 'official';
@@ -505,5 +685,30 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: Colors.colors.success,
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
+  },
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
   },
 });

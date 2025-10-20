@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,28 +22,154 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { MOCK_MATCHES } from '@/mocks/data';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
+import { Match } from '@/types';
+import { useUserProfile } from '@/contexts/UserProfileContext';
+import { supabase } from '@/lib/supabase';
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [hasJoined, setHasJoined] = useState(false);
+  const { profile } = useUserProfile();
+  const [match, setMatch] = useState<Match | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isJoining, setIsJoining] = useState<boolean>(false);
+  const [isLeaving, setIsLeaving] = useState<boolean>(false);
 
-  const match = MOCK_MATCHES.find((m) => m.id === id) || MOCK_MATCHES[0];
+  useEffect(() => {
+    loadMatch();
+    const subscription = supabase
+      .channel(`match_${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${id}` }, () => {
+        loadMatch();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_players', filter: `match_id=eq.${id}` }, () => {
+        loadMatch();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [id]);
+
+  const loadMatch = async () => {
+    try {
+      setIsLoading(true);
+      const { data: matchData, error } = await supabase
+        .from('matches')
+        .select(`
+          *,
+          host:users!matches_host_id_fkey(*),
+          match_players(user:users(*))
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error || !matchData) {
+        console.error('Error loading match:', error);
+        return;
+      }
+
+      const formattedMatch: Match = {
+        id: matchData.id,
+        type: matchData.type,
+        status: matchData.status,
+        host: {
+          id: matchData.host.id,
+          username: matchData.host.username || 'User',
+          rank: matchData.host.rank || { division: 'Cuivre', level: 1, points: 0 },
+          city: matchData.host.city || 'CASABLANCA',
+          wins: matchData.host.wins || 0,
+          losses: matchData.host.losses || 0,
+          reputation: matchData.host.reputation || 0,
+          level: matchData.host.level || 1,
+        },
+        players: (matchData.match_players || []).map((mp: any) => ({
+          id: mp.user.id,
+          username: mp.user.username || 'User',
+          rank: mp.user.rank || { division: 'Cuivre', level: 1, points: 0 },
+          city: mp.user.city || 'CASABLANCA',
+          wins: mp.user.wins || 0,
+          losses: mp.user.losses || 0,
+          reputation: mp.user.reputation || 0,
+          level: mp.user.level || 1,
+        })),
+        maxPlayers: matchData.max_players,
+        field: matchData.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
+        scheduledTime: matchData.scheduled_time ? new Date(matchData.scheduled_time) : undefined,
+        pointReward: matchData.point_reward,
+        pointPenalty: matchData.point_penalty,
+        createdAt: new Date(matchData.created_at),
+      };
+
+      setMatch(formattedMatch);
+    } catch (error) {
+      console.error('Error loading match:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJoinMatch = async () => {
+    if (!profile || !match) return;
+
+    try {
+      setIsJoining(true);
+      const { error } = await supabase
+        .from('match_players')
+        .insert([{ match_id: match.id, user_id: profile.id }]);
+
+      if (error) {
+        console.error('Error joining match:', error);
+        return;
+      }
+
+      await loadMatch();
+    } catch (error) {
+      console.error('Error joining match:', error);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handleLeaveMatch = async () => {
+    if (!profile || !match) return;
+
+    try {
+      setIsLeaving(true);
+      const { error } = await supabase
+        .from('match_players')
+        .delete()
+        .eq('match_id', match.id)
+        .eq('user_id', profile.id);
+
+      if (error) {
+        console.error('Error leaving match:', error);
+        return;
+      }
+
+      await loadMatch();
+    } catch (error) {
+      console.error('Error leaving match:', error);
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
+  if (isLoading || !match) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator color={Colors.colors.primary} size="large" />
+        <Text style={styles.loadingText}>Loading match...</Text>
+      </View>
+    );
+  }
+
   const hostRankInfo = RANK_INFO[match.host.rank.division];
   const isOfficial = match.type === 'official';
-
-  const handleJoinMatch = () => {
-    console.log('Joining match:', match.id);
-    setHasJoined(true);
-  };
-
-  const handleLeaveMatch = () => {
-    console.log('Leaving match:', match.id);
-    setHasJoined(false);
-  };
+  const hasJoined = profile ? match.players.some(p => p.id === profile.id) : false;
 
   return (
     <View style={styles.container}>
@@ -231,6 +358,7 @@ export default function MatchDetailsScreen() {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => router.push(`/match/result/${match.id}`)}
+            disabled={!hasJoined}
           >
             <LinearGradient
               colors={[Colors.colors.success, '#0EA575']}
@@ -242,22 +370,37 @@ export default function MatchDetailsScreen() {
             </LinearGradient>
           </TouchableOpacity>
         ) : !hasJoined ? (
-          <TouchableOpacity style={styles.actionButton} onPress={handleJoinMatch}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={handleJoinMatch}
+            disabled={isJoining || !profile || match.players.length >= match.maxPlayers}
+          >
             <LinearGradient
               colors={[Colors.colors.primary, Colors.colors.primaryDark]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.actionButtonGradient}
             >
-              <Text style={styles.actionButtonText}>Join Match</Text>
+              {isJoining ? (
+                <ActivityIndicator color={Colors.colors.textPrimary} size="small" />
+              ) : (
+                <Text style={styles.actionButtonText}>
+                  {match.players.length >= match.maxPlayers ? 'Match Full' : 'Join Match'}
+                </Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[styles.actionButton, styles.leaveButton]}
             onPress={handleLeaveMatch}
+            disabled={isLeaving}
           >
-            <Text style={styles.leaveButtonText}>Leave Match</Text>
+            {isLeaving ? (
+              <ActivityIndicator color={Colors.colors.textPrimary} size="small" style={{ paddingVertical: 16 }} />
+            ) : (
+              <Text style={styles.leaveButtonText}>Leave Match</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -566,5 +709,14 @@ const styles = StyleSheet.create({
     color: Colors.colors.textPrimary,
     paddingVertical: 16,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
   },
 });

@@ -1,30 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Trophy, Medal, Award } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { MOCK_LEADERBOARD } from '@/mocks/data';
-import { formatRank, RANK_INFO, RankDivision } from '@/constants/ranks';
+import { formatRank, RANK_INFO, RankDivision, RankLevel } from '@/constants/ranks';
 import { Player } from '@/types';
+import { supabase } from '@/lib/supabase';
+
+type FilterOption = RankDivision | 'all' | `${RankDivision}-${RankLevel}`;
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
-  const [selectedDivision, setSelectedDivision] = useState<RankDivision | 'all'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all');
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const filteredPlayers = MOCK_LEADERBOARD.filter((player) => {
-    if (selectedDivision === 'all') return true;
-    return player.rank.division === selectedDivision;
+  useEffect(() => {
+    loadPlayers();
+    const subscription = supabase
+      .channel('leaderboard_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        loadPlayers();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [selectedFilter]);
+
+  const loadPlayers = async () => {
+    try {
+      setIsLoading(true);
+      const { data: usersData, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('rank->points', { ascending: false });
+
+      if (error) {
+        console.error('Error loading players:', error);
+        return;
+      }
+
+      const formattedPlayers: Player[] = (usersData || []).map((user: any) => ({
+        id: user.id,
+        username: user.username || 'User',
+        rank: user.rank || { division: 'Cuivre', level: 1, points: 0 },
+        city: user.city || 'CASABLANCA',
+        wins: user.wins || 0,
+        losses: user.losses || 0,
+        reputation: user.reputation || 0,
+        level: user.level || 1,
+      }));
+
+      setPlayers(formattedPlayers);
+    } catch (error) {
+      console.error('Error loading players:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredPlayers = players.filter((player) => {
+    if (selectedFilter === 'all') return true;
+    
+    if (selectedFilter.includes('-')) {
+      const [division, level] = selectedFilter.split('-');
+      return player.rank.division === division && player.rank.level.toString() === level;
+    }
+    
+    return player.rank.division === selectedFilter;
   }).sort((a, b) => b.rank.points - a.rank.points);
 
-  const divisions: (RankDivision | 'all')[] = ['all', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Cuivre'];
+  const divisions: RankDivision[] = ['Diamond', 'Platinum', 'Gold', 'Silver', 'Cuivre'];
+  const subRankLevels: RankLevel[] = [1, 2, 3];
 
   return (
     <View style={styles.container}>
@@ -36,44 +94,97 @@ export default function LeaderboardScreen() {
         <Text style={styles.headerSubtitle}>Compete with the best players</Text>
       </View>
 
-      <ScrollView
-        horizontal
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContent}
-        showsHorizontalScrollIndicator={false}
-      >
-        {divisions.map((division) => (
+      <View>
+        <ScrollView
+          horizontal
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContent}
+          showsHorizontalScrollIndicator={false}
+        >
           <TouchableOpacity
-            key={division}
             style={[
               styles.filterButton,
-              selectedDivision === division && styles.filterButtonActive,
+              selectedFilter === 'all' && styles.filterButtonActive,
             ]}
-            onPress={() => setSelectedDivision(division)}
+            onPress={() => setSelectedFilter('all')}
           >
-            {division !== 'all' && (
-              <Text style={styles.filterEmoji}>
-                {RANK_INFO[division as RankDivision].icon}
-              </Text>
-            )}
             <Text
               style={[
                 styles.filterButtonText,
-                selectedDivision === division && styles.filterButtonTextActive,
+                selectedFilter === 'all' && styles.filterButtonTextActive,
               ]}
             >
-              {division === 'all' ? 'All Ranks' : division}
+              All Ranks
             </Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+          {divisions.map((division) => (
+            <TouchableOpacity
+              key={division}
+              style={[
+                styles.filterButton,
+                selectedFilter === division && styles.filterButtonActive,
+              ]}
+              onPress={() => setSelectedFilter(division)}
+            >
+              <Text style={styles.filterEmoji}>
+                {RANK_INFO[division].icon}
+              </Text>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  selectedFilter === division && styles.filterButtonTextActive,
+                ]}
+              >
+                {division}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {selectedFilter !== 'all' && !selectedFilter.includes('-') && (
+          <ScrollView
+            horizontal
+            style={styles.subFilterScroll}
+            contentContainerStyle={styles.filterContent}
+            showsHorizontalScrollIndicator={false}
+          >
+            {subRankLevels.map((level) => {
+              const subFilter = `${selectedFilter}-${level}` as FilterOption;
+              return (
+                <TouchableOpacity
+                  key={level}
+                  style={[
+                    styles.subFilterButton,
+                    selectedFilter === subFilter && styles.subFilterButtonActive,
+                  ]}
+                  onPress={() => setSelectedFilter(subFilter)}
+                >
+                  <Text
+                    style={[
+                      styles.subFilterButtonText,
+                      selectedFilter === subFilter && styles.subFilterButtonTextActive,
+                    ]}
+                  >
+                    Level {level}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
       >
-        {filteredPlayers.length > 0 ? (
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={Colors.colors.primary} size="large" />
+            <Text style={styles.loadingText}>Loading leaderboard...</Text>
+          </View>
+        ) : filteredPlayers.length > 0 ? (
           <>
             {filteredPlayers.slice(0, 3).map((player, index) => (
               <TopPlayerCard key={player.id} player={player} position={index + 1} />
@@ -90,6 +201,7 @@ export default function LeaderboardScreen() {
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No players found</Text>
+            <Text style={styles.emptyStateSubtext}>Try selecting a different rank</Text>
           </View>
         )}
       </ScrollView>
@@ -414,6 +526,47 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
+  },
+  subFilterScroll: {
+    backgroundColor: Colors.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.colors.border,
+  },
+  subFilterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+  },
+  subFilterButtonActive: {
+    backgroundColor: Colors.colors.primary + '40',
+    borderColor: Colors.colors.primary,
+  },
+  subFilterButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
+  },
+  subFilterButtonTextActive: {
+    color: Colors.colors.primary,
+  },
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
     color: Colors.colors.textSecondary,
   },
 });
