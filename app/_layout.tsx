@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { UserProfileProvider, useUserProfile } from "@/contexts/UserProfileContext";
 import Colors from "@/constants/colors";
-import { trpc, trpcReactClient } from "@/lib/trpc";
+import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,6 +72,8 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [trpcReactClient] = useState(() => trpcClient);
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
