@@ -1,14 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabaseUrl =
-  process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseAnonKey =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+const supabaseUrl = 'https://xwjenfvpmqwcikopopkm.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3amVuZnZwbXF3Y2lrb3BvcGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4MDk3NTcsImV4cCI6MjA1MjM4NTc1N30.LUqClhuXV-L7u5QBL4IQVZX_DnYxXL6xZgv6q_7Y3Bs';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'Missing Supabase environment variables. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file.'
+    'Missing Supabase environment variables.'
   );
 }
 
