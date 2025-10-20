@@ -21,6 +21,7 @@ import {
   Heart,
   Star,
   ShieldAlert,
+  Activity,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -202,6 +203,20 @@ export default function ProfileScreen() {
             <ShieldAlert color={Colors.colors.success} size={16} />
             <Text style={styles.reportStatusText}>No reports • Clean record</Text>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Developer</Text>
+          <TouchableOpacity
+            style={styles.diagnosticsButton}
+            onPress={() => router.push('/debug-supabase')}
+            testID="supabase-diagnostics-button"
+          >
+            <View style={styles.diagnosticsIcon}>
+              <Activity color={Colors.colors.primary} size={20} />
+            </View>
+            <Text style={styles.diagnosticsButtonText}>Supabase Diagnostics</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -592,5 +607,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.colors.textSecondary,
     textAlign: 'center' as const,
+  },
+  diagnosticsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+    gap: 12,
+  },
+  diagnosticsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  diagnosticsButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
   },
 });

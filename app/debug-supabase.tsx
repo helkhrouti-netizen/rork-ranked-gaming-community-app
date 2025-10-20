@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle, XCircle, AlertCircle, Copy } from 'lucide-react-native';
@@ -30,7 +30,18 @@ export default function DebugSupabaseScreen() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const testConnection = async () => {
+  const showToast = (message: string, isSuccess: boolean) => {
+    if (Platform.OS === 'web') {
+      alert(message);
+    } else {
+      Alert.alert(
+        isSuccess ? 'Connection Successful' : 'Connection Failed',
+        message
+      );
+    }
+  };
+
+  const testConnection = useCallback(async () => {
     setTestResult({ status: 'testing', message: 'Testing connection...' });
 
     try {
@@ -42,11 +53,13 @@ export default function DebugSupabaseScreen() {
 
       if (error) {
         console.error('Connection test failed:', error);
+        const errorDetails = `Error: ${error.message}\n\nCode: ${error.code || 'N/A'}\n\nHint: ${error.hint || 'N/A'}\n\nUsing URL: ${config.url}\nUsing Key: ${maskedKey}`;
         setTestResult({
           status: 'error',
           message: 'Connection Failed',
-          details: `Error: ${error.message}\n\nCode: ${error.code || 'N/A'}\n\nHint: ${error.hint || 'N/A'}\n\nUsing URL: ${config.url}\nUsing Key: ${maskedKey}`,
+          details: errorDetails,
         });
+        showToast(`❌ ${error.message}`, false);
         return;
       }
 
@@ -56,16 +69,23 @@ export default function DebugSupabaseScreen() {
         message: '✅ Connected Successfully',
         details: 'Successfully connected to Supabase and queried the users table.',
       });
+      showToast('✅ Connected Successfully', true);
     } catch (err) {
       console.error('Connection test exception:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorDetails = `Exception: ${errorMessage}\n\nUsing URL: ${config.url}\nUsing Key: ${maskedKey}`;
       setTestResult({
         status: 'error',
         message: 'Connection Failed',
-        details: `Exception: ${errorMessage}\n\nUsing URL: ${config.url}\nUsing Key: ${maskedKey}`,
+        details: errorDetails,
       });
+      showToast(`❌ ${errorMessage}`, false);
     }
-  };
+  }, [config.url, config.anonKey, maskedKey]);
+
+  useEffect(() => {
+    testConnection();
+  }, [testConnection]);
 
   const StatusIcon = ({ status }: { status: TestStatus }) => {
     switch (status) {
