@@ -47,12 +47,12 @@ export default function DebugSupabaseScreen() {
       const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
 
       if (error) {
-        console.error('Connection test failed:', error);
+        console.error('Connection test failed:', JSON.stringify(error, null, 2));
         const errorMessage = error.message || 'Unknown error';
         const errorCode = error.code || 'N/A';
         const errorHint = error.hint || 'N/A';
         
-        const detailsText = `Error Message: ${errorMessage}\n\nError Code: ${errorCode}\n\nHint: ${errorHint}\n\nDetails: ${error.details || 'N/A'}`;
+        const detailsText = `Error Message: ${errorMessage}\n\nError Code: ${errorCode}\n\nHint: ${errorHint}\n\nDetails: ${error.details || 'N/A'}\n\nFull Error Object:\n${JSON.stringify(error, null, 2)}`;
         
         setTestResult({
           status: 'error',
@@ -78,11 +78,18 @@ export default function DebugSupabaseScreen() {
         },
       });
     } catch (err) {
-      console.error('Connection test exception:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Connection test exception:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+      const errorMessage = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : JSON.stringify(err));
       const errorStack = err instanceof Error ? err.stack : undefined;
       
-      const detailsText = `Exception: ${errorMessage}${errorStack ? '\n\nStack: ' + errorStack : ''}`;
+      let fullErrorDetails = '';
+      try {
+        fullErrorDetails = JSON.stringify(err, Object.getOwnPropertyNames(err), 2);
+      } catch {
+        fullErrorDetails = String(err);
+      }
+      
+      const detailsText = `Exception: ${errorMessage}${errorStack ? '\n\nStack: ' + errorStack : ''}\n\nFull Error Object:\n${fullErrorDetails}`;
       
       setTestResult({
         status: 'error',
