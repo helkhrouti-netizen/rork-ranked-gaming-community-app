@@ -63,24 +63,25 @@ const [SupabaseAuthProviderInternal, useSupabaseAuthInternal] = createContextHoo
     }
 
     if (data.user) {
-      console.log('📦 Creating profile in database for user:', data.user.id);
+      console.log('📦 Updating profile in database for user:', data.user.id);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: data.user.id,
+        .update({
           username: username || email.split('@')[0],
-          phone: phone || null,
           email: email,
           onboarding_completed: false,
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        })
+        .eq('id', data.user.id);
 
       if (profileError) {
-        console.error('❌ Error creating profile:', profileError);
-        throw new Error('Failed to create user profile');
+        console.error('❌ Error updating profile:', JSON.stringify(profileError, null, 2));
+        throw new Error(`Failed to create user profile: ${profileError.message || JSON.stringify(profileError)}`);
       }
-      console.log('✅ Profile created successfully');
+      console.log('✅ Profile updated successfully');
     }
 
     return data;
