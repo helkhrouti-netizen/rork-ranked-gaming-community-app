@@ -20,25 +20,12 @@ import {
   Play,
   AlertCircle,
 } from 'lucide-react-native';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  getDocs,
-  doc,
-  getDoc,
-  serverTimestamp,
-  limit,
-} from 'firebase/firestore';
 
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
-import { Match } from '@/types';
+import { Match, Player } from '@/types';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { db } from '@/lib/firebase';
+import { mockDataProvider, MockUser } from '@/lib/mockData';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
@@ -53,88 +40,65 @@ export default function PlayScreen() {
   const rankInfo = profile?.rank ? RANK_INFO[profile.rank.division] : RANK_INFO['Cuivre'];
 
   useEffect(() => {
-    const matchesRef = collection(db, 'matches');
-    const q = query(matchesRef, orderBy('createdAt', 'desc'), limit(50));
-
-    const unsubscribe = onSnapshot(
-      q,
-      async (snapshot) => {
-        try {
-          setErrorMessage('');
-          const matchesData = await Promise.all(
-            snapshot.docs.map(async (matchDoc) => {
-              const matchData = matchDoc.data();
-              
-              const hostDocRef = doc(db, 'users', matchData.hostId);
-              const hostDoc = await getDoc(hostDocRef);
-              const hostData = hostDoc.exists() ? hostDoc.data() : null;
-
-              const matchPlayersRef = collection(db, 'matchPlayers');
-              const playersQuery = query(matchPlayersRef, where('matchId', '==', matchDoc.id));
-              const playersSnapshot = await getDocs(playersQuery);
-              
-              const players = await Promise.all(
-                playersSnapshot.docs.map(async (playerDoc) => {
-                  const playerData = playerDoc.data();
-                  const userDocRef = doc(db, 'users', playerData.userId);
-                  const userDoc = await getDoc(userDocRef);
-                  const userData = userDoc.exists() ? userDoc.data() : null;
-                  
-                  return {
-                    id: playerData.userId,
-                    username: userData?.username || 'User',
-                    rank: userData?.rank || { division: 'Cuivre', level: 1, points: 0 },
-                    city: userData?.city || 'CASABLANCA',
-                    wins: userData?.wins || 0,
-                    losses: userData?.losses || 0,
-                    reputation: userData?.reputation || 0,
-                    level: userData?.level || 1,
-                  };
-                })
-              );
-
-              return {
-                id: matchDoc.id,
-                type: matchData.type || 'official',
-                status: matchData.status || 'waiting',
-                host: {
-                  id: matchData.hostId,
-                  username: hostData?.username || 'User',
-                  rank: hostData?.rank || { division: 'Cuivre', level: 1, points: 0 },
-                  city: hostData?.city || 'CASABLANCA',
-                  wins: hostData?.wins || 0,
-                  losses: hostData?.losses || 0,
-                  reputation: hostData?.reputation || 0,
-                  level: hostData?.level || 1,
-                },
-                players,
-                maxPlayers: matchData.maxPlayers || 4,
-                field: matchData.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
-                scheduledTime: matchData.scheduledTime ? new Date(matchData.scheduledTime.seconds * 1000) : undefined,
-                pointReward: matchData.pointReward || 50,
-                pointPenalty: matchData.pointPenalty || 30,
-                createdAt: matchData.createdAt ? new Date(matchData.createdAt.seconds * 1000) : new Date(),
-              };
-            })
-          );
-
-          setMatches(matchesData);
-          setIsLoadingMatches(false);
-        } catch (error: any) {
-          console.error('Error loading matches:', error);
-          setErrorMessage(error?.message || 'Failed to load matches');
-          setIsLoadingMatches(false);
-        }
-      },
-      (error) => {
-        console.error('Error listening to matches:', error);
-        setErrorMessage(error.message || 'Failed to load matches');
-        setIsLoadingMatches(false);
-      }
-    );
-
-    return () => unsubscribe();
+    loadMatches();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMatches = async () => {
+    try {
+      setIsLoadingMatches(true);
+      setErrorMessage('');
+
+      await mockDataProvider.initialize();
+      const mockMatches = await mockDataProvider.getAllMatches();
+
+      const matchesData = await Promise.all(
+        mockMatches.map(async (mockMatch) => {
+          const host = await mockDataProvider.getUser(mockMatch.hostId);
+          const matchPlayers = await mockDataProvider.getMatchPlayers(mockMatch.id);
+
+          if (!host) {
+            return null;
+          }
+
+          const formattedMatch: Match = {
+            id: mockMatch.id,
+            type: mockMatch.type,
+            status: mockMatch.status,
+            host: convertMockUserToPlayer(host),
+            players: matchPlayers.map(convertMockUserToPlayer),
+            maxPlayers: mockMatch.maxPlayers,
+            field: mockMatch.field,
+            scheduledTime: mockMatch.scheduledTime,
+            pointReward: mockMatch.pointReward,
+            pointPenalty: mockMatch.pointPenalty,
+            createdAt: mockMatch.createdAt,
+          };
+
+          return formattedMatch;
+        })
+      );
+
+      setMatches(matchesData.filter((m): m is Match => m !== null));
+    } catch (error: any) {
+      console.error('Error loading matches:', error);
+      setErrorMessage(error?.message || 'Failed to load matches');
+    } finally {
+      setIsLoadingMatches(false);
+    }
+  };
+
+  const convertMockUserToPlayer = (user: MockUser): Player => ({
+    id: user.id,
+    username: user.username,
+    rank: user.rank,
+    avatar: user.profilePicture,
+    city: user.city,
+    wins: user.wins,
+    losses: user.losses,
+    reputation: user.reputation,
+    level: user.level,
+  });
 
   const handleQuickMatch = async () => {
     if (!profile) {
@@ -145,61 +109,25 @@ export default function PlayScreen() {
     try {
       setIsQuickMatchLoading(true);
 
-      const matchesRef = collection(db, 'matches');
-      const availableMatchesQuery = query(
-        matchesRef,
-        where('status', '==', 'waiting'),
-        orderBy('createdAt', 'asc'),
-        limit(10)
-      );
+      const openMatch = await mockDataProvider.findOpenMatch(profile.rank.division);
 
-      const availableMatchesSnapshot = await getDocs(availableMatchesQuery);
-
-      let matchToJoin = null;
-      for (const matchDoc of availableMatchesSnapshot.docs) {
-        const matchData = matchDoc.data();
-        const matchPlayersRef = collection(db, 'matchPlayers');
-        const playersQuery = query(matchPlayersRef, where('matchId', '==', matchDoc.id));
-        const playersSnapshot = await getDocs(playersQuery);
-        
-        if (playersSnapshot.size < (matchData.maxPlayers || 4)) {
-          matchToJoin = matchDoc.id;
-          break;
-        }
-      }
-
-      if (matchToJoin) {
-        const matchPlayersRef = collection(db, 'matchPlayers');
-        await addDoc(matchPlayersRef, {
-          matchId: matchToJoin,
-          userId: profile.id,
-          joinedAt: serverTimestamp(),
-        });
-
-        router.push(`/match/${matchToJoin}`);
+      if (openMatch) {
+        await mockDataProvider.joinMatch(openMatch.id, profile.id);
+        router.push(`/match/${openMatch.id}`);
       } else {
-        const matchesRef = collection(db, 'matches');
-        const newMatchDoc = await addDoc(matchesRef, {
-          hostId: profile.id,
+        const newMatch = await mockDataProvider.createMatch(profile.id, {
           type: 'official',
           status: 'waiting',
           maxPlayers: 4,
           pointReward: 50,
           pointPenalty: 30,
-          field: { name: 'Quick Match Field', address: 'Auto-selected', city: profile.city },
-          tier: profile.rank.division,
-          createdAt: serverTimestamp(),
+          field: { id: `quick-${Date.now()}`, name: 'Quick Match Field', address: 'Auto-selected', city: profile.city, type: 'indoor' },
         });
 
-        const matchPlayersRef = collection(db, 'matchPlayers');
-        await addDoc(matchPlayersRef, {
-          matchId: newMatchDoc.id,
-          userId: profile.id,
-          joinedAt: serverTimestamp(),
-        });
-
-        router.push(`/match/${newMatchDoc.id}`);
+        router.push(`/match/${newMatch.id}`);
       }
+
+      await loadMatches();
     } catch (error) {
       console.error('Quick match error:', error);
       setErrorMessage('Failed to join/create match. Please try again.');
