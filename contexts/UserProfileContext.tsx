@@ -104,6 +104,9 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       setIsAuthenticated(true);
       await loadProfile(loggedInUser);
       
+      const onboardingComplete = await profileService.isOnboardingComplete();
+      setIsOnboarded(onboardingComplete);
+      
       console.log('✅ Login successful (mock):', loggedInUser.email);
       return { user: loggedInUser };
     } catch (error: any) {

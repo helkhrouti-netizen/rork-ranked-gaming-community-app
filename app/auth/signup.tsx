@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,16 +72,7 @@ export default function SignupScreen() {
         phoneNumber.trim() || undefined
       );
 
-      Alert.alert(
-        'Account Created',
-        'Your account has been created successfully! Complete your profile to get started.',
-        [
-          {
-            text: 'Continue',
-            onPress: () => router.replace('/onboarding'),
-          },
-        ]
-      );
+      router.replace('/onboarding');
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
       console.error('Signup error:', err);
