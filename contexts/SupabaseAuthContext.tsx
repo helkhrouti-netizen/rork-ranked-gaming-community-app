@@ -52,7 +52,7 @@ const [SupabaseAuthProviderInternal, useSupabaseAuthInternal] = createContextHoo
     return () => subscription.unsubscribe();
   }, [loadProfile]);
 
-  const signup = useCallback(async (email: string, password: string) => {
+  const signup = useCallback(async (email: string, password: string, username?: string, phone?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -60,6 +60,27 @@ const [SupabaseAuthProviderInternal, useSupabaseAuthInternal] = createContextHoo
 
     if (error) {
       throw error;
+    }
+
+    if (data.user) {
+      console.log('📦 Creating profile in database for user:', data.user.id);
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          username: username || email.split('@')[0],
+          phone: phone || null,
+          email: email,
+          onboarding_completed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (profileError) {
+        console.error('❌ Error creating profile:', profileError);
+        throw new Error('Failed to create user profile');
+      }
+      console.log('✅ Profile created successfully');
     }
 
     return data;

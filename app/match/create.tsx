@@ -24,50 +24,70 @@ import {
 
 import Colors from '@/constants/colors';
 import { MatchType } from '@/types';
-import { formatRank, RANK_INFO, getDetailedRankInfo, getRPChangeForMatch } from '@/constants/ranks';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { RANK_INFO, getDetailedRankInfo, getRPChangeForMatch } from '@/constants/ranks';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
-import { mockDataProvider } from '@/lib/mockData';
+import { supabaseMatchService } from '@/services/supabaseMatch';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile } = useUserProfile();
+  const { profile } = useSupabaseAuth();
   const [matchType, setMatchType] = useState<MatchType>('friendly');
   const [maxPlayers, setMaxPlayers] = useState<string>('4');
   const [selectedField, setSelectedField] = useState<Field | null>(null);
   const [scheduledTime, setScheduledTime] = useState<string>('');
   const [showFieldPicker, setShowFieldPicker] = useState(false);
+  const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
-  const detailedRankInfo = profile?.rank ? getDetailedRankInfo(profile.rank.division, profile.rank.level) : null;
-  const rankInfo = profile?.rank ? (RANK_INFO[profile.rank.division] || RANK_INFO['Cuivre']) : RANK_INFO['Cuivre'];
+  const detailedRankInfo = profile?.rankTier && profile?.rankSub
+    ? getDetailedRankInfo(profile.rankTier, profile.rankSub)
+    : null;
+  const rankInfo = profile?.rankTier
+    ? (RANK_INFO[profile.rankTier as keyof typeof RANK_INFO] || RANK_INFO['Cuivre'])
+    : RANK_INFO['Cuivre'];
   const rankColor = detailedRankInfo?.color || rankInfo?.color || '#CD7F32';
   const rankIcon = detailedRankInfo?.icon || rankInfo?.icon || '🥉';
   const availableFields = getFieldsByCity(profile?.city ?? 'CASABLANCA');
 
-  const pointReward = profile?.rank ? getRPChangeForMatch(matchType, 'win', profile.rank.points) : 0;
-  const pointPenalty = profile?.rank ? Math.abs(getRPChangeForMatch(matchType, 'loss', profile.rank.points)) : 0;
+  const currentRP = profile?.rp ?? 0;
+  const pointReward = getRPChangeForMatch(matchType, 'win', currentRP);
+  const pointPenalty = Math.abs(getRPChangeForMatch(matchType, 'loss', currentRP));
 
   const handleCreateMatch = useCallback(async () => {
-    if (!profile) return;
+    if (!profile) {
+      setError('You must be logged in to create a match');
+      return;
+    }
+
+    if (!selectedField) {
+      setError('Please select a field or club');
+      return;
+    }
+
+    setIsCreating(true);
+    setError('');
 
     try {
       const parsedMax = Number.parseInt(maxPlayers, 10);
       const max = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 4;
 
-      const newMatch = await mockDataProvider.createMatch(profile.id, {
+      const newMatch = await supabaseMatchService.createMatch({
         type: matchType,
-        status: 'waiting',
         maxPlayers: max,
         pointReward,
         pointPenalty,
-        field: selectedField ?? { name: 'Custom Field', id: 'custom', address: '', city: profile.city, type: 'outdoor' },
+        field: selectedField,
       });
 
-      console.log('[CreateMatch] Match created (mock):', newMatch.id);
+      console.log('✅ Match created successfully:', newMatch.id);
       router.replace(`/match/${newMatch.id}`);
-    } catch (error) {
-      console.error('[CreateMatch] Failed to create match', error);
+    } catch (err: any) {
+      console.error('❌ Failed to create match:', err);
+      setError(err.message || 'Failed to create match. Please try again.');
+    } finally {
+      setIsCreating(false);
     }
   }, [profile, matchType, maxPlayers, selectedField, pointReward, pointPenalty, router]);
 
@@ -105,7 +125,9 @@ export default function CreateMatchScreen() {
               <View style={styles.hostRank}>
                 <Text style={styles.hostRankEmoji}>{rankIcon}</Text>
                 <Text style={styles.hostRankText}>
-                  {profile?.rank ? `${formatRank(profile.rank)} • ${profile.rank.points} RP` : 'Unranked'}
+                  {profile?.rankTier && profile?.rankSub
+                    ? `${profile.rankTier} ${profile.rankSub} • ${profile.rp ?? 0} RP`
+                    : 'Unranked'}
                 </Text>
               </View>
             </View>
@@ -251,14 +273,29 @@ export default function CreateMatchScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity style={styles.createButton} onPress={handleCreateMatch}>
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+        <TouchableOpacity
+          style={[styles.createButton, isCreating && styles.createButtonDisabled]}
+          onPress={handleCreateMatch}
+          disabled={isCreating}
+        >
           <LinearGradient
-            colors={[Colors.colors.primary, Colors.colors.primaryDark]}
+            colors={
+              isCreating
+                ? [Colors.colors.surfaceLight, Colors.colors.surfaceLight]
+                : [Colors.colors.primary, Colors.colors.primaryDark]
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.createButtonGradient}
           >
-            <Text style={styles.createButtonText}>Create Match</Text>
+            <Text style={[styles.createButtonText, isCreating && styles.createButtonTextDisabled]}>
+              {isCreating ? 'Creating Match...' : 'Create Match'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -523,6 +560,20 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.colors.textPrimary,
   },
+  errorContainer: {
+    backgroundColor: Colors.colors.danger + '20',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.colors.danger,
+  },
+  errorText: {
+    fontSize: 14,
+    color: Colors.colors.danger,
+    textAlign: 'center',
+    fontWeight: '600' as const,
+  },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -534,6 +585,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
+  createButtonDisabled: {
+    opacity: 0.5,
+  },
   createButtonGradient: {
     paddingVertical: 16,
     alignItems: 'center',
@@ -542,6 +596,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700' as const,
     color: Colors.colors.textPrimary,
+  },
+  createButtonTextDisabled: {
+    color: Colors.colors.textMuted,
   },
   modalOverlay: {
     flex: 1,

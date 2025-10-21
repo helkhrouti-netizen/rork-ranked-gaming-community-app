@@ -67,9 +67,12 @@ export default function SignupScreen() {
     try {
       await signup(
         email.trim().toLowerCase(),
-        password.trim()
+        password.trim(),
+        username.trim(),
+        phoneNumber.trim()
       );
 
+      console.log('✅ Sign up successful, profile created in database');
       router.replace('/onboarding');
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
