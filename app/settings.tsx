@@ -69,9 +69,10 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleChangeCity = async (city: MoroccoCity) => {
+  const handleChangeCity = async (city: string) => {
     try {
-      await updateProfile({ city });
+      const cityKey = city.toUpperCase().replace(/ /g, '_') as MoroccoCity;
+      await updateProfile({ city: cityKey });
       setChangeCityModalVisible(false);
       Alert.alert('Success', 'City updated successfully');
     } catch {
@@ -135,6 +136,13 @@ export default function SettingsScreen() {
     return null;
   }
 
+  const getCityInfo = (cityValue: MoroccoCity | string) => {
+    const cityKey = cityValue.toUpperCase().replace(/ /g, '_') as MoroccoCity;
+    return CITY_INFO[cityKey] || { emoji: '📍', name: cityValue as string };
+  };
+
+  const cityInfo = getCityInfo(profile.city);
+
   return (
     <>
       <Stack.Screen
@@ -182,7 +190,7 @@ export default function SettingsScreen() {
                 <View style={styles.settingsItemContent}>
                   <Text style={styles.settingsItemText}>City</Text>
                   <Text style={styles.settingsItemSubtext}>
-                    {CITY_INFO[profile.city].emoji} {CITY_INFO[profile.city].name}
+                    {cityInfo.emoji} {cityInfo.name}
                   </Text>
                 </View>
               </View>
@@ -328,8 +336,9 @@ export default function SettingsScreen() {
 
               <ScrollView style={styles.modalScroll}>
                 {MOROCCO_CITIES.map((city) => {
-                  const cityInfo = CITY_INFO[city];
-                  const isSelected = profile.city === city;
+                  const cityKey = city.toUpperCase().replace(/ /g, '_') as MoroccoCity;
+                  const modalCityInfo = CITY_INFO[cityKey] || { emoji: '📍', name: city };
+                  const isSelected = profile.city === city || profile.city === cityKey;
 
                   return (
                     <TouchableOpacity
@@ -341,12 +350,12 @@ export default function SettingsScreen() {
                       onPress={() => handleChangeCity(city)}
                     >
                       <View style={styles.cityOptionLeft}>
-                        <Text style={styles.cityEmoji}>{cityInfo.emoji}</Text>
+                        <Text style={styles.cityEmoji}>{modalCityInfo.emoji}</Text>
                         <Text style={[
                           styles.cityName,
                           isSelected && styles.cityNameSelected,
                         ]}>
-                          {cityInfo.name}
+                          {modalCityInfo.name}
                         </Text>
                       </View>
                       {isSelected && (
