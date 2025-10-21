@@ -180,6 +180,12 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     }
   }, [profile, user]);
 
+  const refreshOnboardingStatus = useCallback(async () => {
+    const onboardingComplete = await profileService.isOnboardingComplete();
+    setIsOnboarded(onboardingComplete);
+    console.log('🔄 Onboarding status refreshed:', onboardingComplete);
+  }, []);
+
   return useMemo(() => ({
     user,
     profile,
@@ -191,5 +197,6 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     logout,
     createProfile,
     updateProfile,
-  }), [user, profile, isLoading, isAuthenticated, isOnboarded, signup, login, logout, createProfile, updateProfile]);
+    refreshOnboardingStatus,
+  }), [user, profile, isLoading, isAuthenticated, isOnboarded, signup, login, logout, createProfile, updateProfile, refreshOnboardingStatus]);
 });

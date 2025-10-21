@@ -35,116 +35,74 @@ interface OnboardingState {
   answers: OnboardingAnswer[];
 }
 
+const QUESTION_OPTIONS = [
+  { text: 'Never / Not at all', value: 1 },
+  { text: 'Rarely / A little', value: 2 },
+  { text: 'Sometimes / Average', value: 3 },
+  { text: 'Often / Good', value: 4 },
+  { text: 'Always / Very Confident', value: 5 },
+];
+
 const QUESTIONS = [
   {
     id: 1,
     text: 'How long have you been playing padel?',
-    options: [
-      { text: 'Never played before', value: 1 },
-      { text: 'Less than 6 months', value: 2 },
-      { text: '6–12 months', value: 3 },
-      { text: '1–3 years', value: 4 },
-      { text: 'More than 3 years', value: 5 },
-    ],
+    weight: 10,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 2,
-    text: 'How often do you play?',
-    options: [
-      { text: 'Once a month or less', value: 1 },
-      { text: 'Once every 2 weeks', value: 2 },
-      { text: '1 match per week', value: 3 },
-      { text: '2–3 matches per week', value: 4 },
-      { text: '4+ matches per week', value: 5 },
-    ],
+    text: 'How often do you play each week?',
+    weight: 12,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 3,
-    text: 'Have you played official tournaments or leagues?',
-    options: [
-      { text: 'Never', value: 1 },
-      { text: 'Friendly matches only', value: 2 },
-      { text: 'Local amateur events', value: 3 },
-      { text: 'Regional competitions', value: 4 },
-      { text: 'National/international events', value: 5 },
-    ],
+    text: 'When the ball hits the wall, how well can you play it back into the rally?',
+    weight: 8,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 4,
-    text: 'Forehand/backhand consistency?',
-    options: [
-      { text: 'Rarely hit the ball clean', value: 1 },
-      { text: 'Can rally a few shots', value: 2 },
-      { text: 'Consistent in slow rallies', value: 3 },
-      { text: 'Reliable at medium pace', value: 4 },
-      { text: 'Very consistent under pressure', value: 5 },
-    ],
+    text: 'Do you often play matches or tournaments?',
+    weight: 10,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 5,
-    text: 'Net play (volleys/smash) confidence?',
-    options: [
-      { text: 'Avoid the net', value: 1 },
-      { text: 'Basic volleys only', value: 2 },
-      { text: 'Comfortable at the net', value: 3 },
-      { text: 'Aggressive finisher', value: 4 },
-      { text: 'Control and place volleys precisely', value: 5 },
-    ],
+    text: 'How consistent are your forehand and backhand shots?',
+    weight: 10,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 6,
-    text: 'Tactics/positioning knowledge?',
-    options: [
-      { text: 'No idea where to stand', value: 1 },
-      { text: "Follow partner's lead", value: 2 },
-      { text: 'Basic understanding', value: 3 },
-      { text: 'Know attack/defense positions', value: 4 },
-      { text: 'Anticipate and control points', value: 5 },
-    ],
+    text: 'How confident are you with your serves and returns?',
+    weight: 10,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 7,
-    text: 'Physical endurance & movement?',
-    options: [
-      { text: 'Struggle to keep up', value: 1 },
-      { text: 'Move slowly', value: 2 },
-      { text: 'Average fitness', value: 3 },
-      { text: 'Good mobility & stamina', value: 4 },
-      { text: 'Fast recovery & explosive', value: 5 },
-    ],
+    text: 'How good are you at volleys and smashes near the net?',
+    weight: 10,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 8,
-    text: 'Where do you usually play?',
-    options: [
-      { text: 'Never played / planning to start', value: 1 },
-      { text: 'Public courts occasionally', value: 2 },
-      { text: 'Local club regularly', value: 3 },
-      { text: 'Private club / training sessions', value: 4 },
-      { text: 'Professional academy', value: 5 },
-    ],
+    text: 'How well do you place the ball where you want — for example, aiming for corners or open spaces?',
+    weight: 8,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 9,
-    text: 'Do you take lessons/coaching?',
-    options: [
-      { text: 'Never', value: 1 },
-      { text: 'Once or twice', value: 2 },
-      { text: 'Occasional classes', value: 3 },
-      { text: 'Weekly coaching', value: 4 },
-      { text: 'Personal coach / team training', value: 5 },
-    ],
+    text: 'How well do you communicate and plan with your partner during points?',
+    weight: 12,
+    options: QUESTION_OPTIONS,
   },
   {
     id: 10,
-    text: 'Typical match outcome?',
-    options: [
-      { text: 'Rarely win points', value: 1 },
-      { text: 'Win some but lose often', value: 2 },
-      { text: 'Balanced matches', value: 3 },
-      { text: 'Win most friendlies', value: 4 },
-      { text: 'Consistently win competitive matches', value: 5 },
-    ],
+    text: 'How long can you keep your consistency and energy during a full match?',
+    weight: 10,
+    options: QUESTION_OPTIONS,
   },
 ];
 
@@ -171,7 +129,7 @@ function computeRankFromScore(score: number) {
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { updateProfile } = useUserProfile();
+  const { updateProfile, refreshOnboardingStatus } = useUserProfile();
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [state, setState] = useState<OnboardingState>({
@@ -182,6 +140,7 @@ export default function OnboardingScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showCitySuggestions, setShowCitySuggestions] = useState<boolean>(false);
 
   const totalSteps = 2 + QUESTIONS.length + 1;
@@ -320,6 +279,9 @@ export default function OnboardingScreen() {
   };
 
   const handleFinish = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     setIsLoading(true);
     try {
       const totalScore = state.answers.reduce((sum, a) => sum + a.value, 0);
@@ -336,6 +298,8 @@ export default function OnboardingScreen() {
       const rpSub = (rankMapping.sub - 1) * 80;
       const rp = rpBase + rpSub + 40;
 
+      console.log('💾 Saving onboarding with completed flag...');
+      
       await profileService.saveOnboarding({
         avatarUri: state.avatarUri,
         username: state.username,
@@ -352,10 +316,14 @@ export default function OnboardingScreen() {
         profilePicture: state.avatarUri,
       });
 
+      await refreshOnboardingStatus();
+
+      console.log('✅ Onboarding completed, navigating to home...');
       router.replace('/(tabs)');
     } catch (error) {
-      console.error('Onboarding save error:', error);
-      Alert.alert('Error', 'Failed to save onboarding. Please try again.');
+      console.error('❌ Onboarding save error:', error);
+      Alert.alert('Error', 'Error saving profile, please try again.');
+      setIsSubmitting(false);
     } finally {
       setIsLoading(false);
     }
@@ -474,14 +442,14 @@ export default function OnboardingScreen() {
             <TouchableOpacity
               style={[styles.nextButton, styles.nextButtonFullWidth]}
               onPress={handleFinish}
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
               testID="quiz-submit"
             >
               <LinearGradient
                 colors={[Colors.colors.success, Colors.colors.success]}
                 style={styles.nextButtonGradient}
               >
-                {isLoading ? (
+                {isLoading || isSubmitting ? (
                   <ActivityIndicator color={Colors.colors.textPrimary} />
                 ) : (
                   <Text style={styles.nextButtonText}>Finish</Text>
