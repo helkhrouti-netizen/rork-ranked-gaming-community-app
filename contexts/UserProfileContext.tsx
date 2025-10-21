@@ -28,12 +28,29 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
 
-  useEffect(() => {
-    loadCurrentUser();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadProfile = useCallback(async (mockUser: MockUser) => {
+    try {
+      const userProfile: UserProfile = {
+        id: mockUser.id,
+        username: mockUser.username || 'User',
+        profilePicture: mockUser.profilePicture,
+        city: mockUser.city || 'CASABLANCA',
+        rank: mockUser.rank || { division: 'Cuivre', level: 1, points: 0 },
+        wins: mockUser.wins || 0,
+        losses: mockUser.losses || 0,
+        reputation: mockUser.reputation || 5.0,
+        level: mockUser.level || 1,
+        createdAt: mockUser.createdAt || new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(userProfile));
+      setProfile(userProfile);
+    } catch (error) {
+      console.error('Failed to load user profile:', error);
+    }
   }, []);
 
-  const loadCurrentUser = async () => {
+  const loadCurrentUser = useCallback(async () => {
     try {
       await mockDataProvider.initialize();
       const currentUser = await mockDataProvider.getCurrentUser();
@@ -54,29 +71,11 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loadProfile]);
 
-  const loadProfile = async (mockUser: MockUser) => {
-    try {
-      const userProfile: UserProfile = {
-        id: mockUser.id,
-        username: mockUser.username || 'User',
-        profilePicture: mockUser.profilePicture,
-        city: mockUser.city || 'CASABLANCA',
-        rank: mockUser.rank || { division: 'Cuivre', level: 1, points: 0 },
-        wins: mockUser.wins || 0,
-        losses: mockUser.losses || 0,
-        reputation: mockUser.reputation || 5.0,
-        level: mockUser.level || 1,
-        createdAt: mockUser.createdAt || new Date().toISOString(),
-      };
-
-      await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(userProfile));
-      setProfile(userProfile);
-    } catch (error) {
-      console.error('Failed to load user profile:', error);
-    }
-  };
+  useEffect(() => {
+    loadCurrentUser();
+  }, [loadCurrentUser]);
 
   const signup = useCallback(async (
     email: string,
@@ -113,7 +112,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       console.error('❌ Login error:', error);
       throw error;
     }
-  }, []);
+  }, [loadProfile]);
 
   const logout = useCallback(async () => {
     try {
@@ -159,7 +158,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       console.error('Failed to create user profile:', error);
       throw error;
     }
-  }, [user]);
+  }, [user, loadProfile]);
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!profile || !user) return;
@@ -178,7 +177,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       console.error('Failed to update user profile:', error);
       throw error;
     }
-  }, [profile, user]);
+  }, [profile, user, loadProfile]);
 
   const refreshOnboardingStatus = useCallback(async () => {
     const onboardingComplete = await profileService.isOnboardingComplete();
