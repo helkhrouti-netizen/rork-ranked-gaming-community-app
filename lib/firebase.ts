@@ -1,40 +1,43 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB1E0e50TC5-41pQY1BGQrIF6bMMRuits4",
-  authDomain: "padelleague-a7097.firebaseapp.com",
-  projectId: "padelleague-a7097",
-  storageBucket: "padelleague-a7097.appspot.com",
-  messagingSenderId: "770919915751",
-  appId: "1:770919915751:web:c324ce2f1af5fd26e04242",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY?.trim() || "AIzaSyB1E0e50TC5-41pQY1BGQrIF6bMMRuits4",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim() || "padelleague-a7097.firebaseapp.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "padelleague-a7097",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "padelleague-a7097.appspot.com",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() || "770919915751",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.trim() || "1:770919915751:web:c324ce2f1af5fd26e04242",
 };
 
-console.log('Firebase config:', {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain,
-  apiKey: firebaseConfig.apiKey.substring(0, 10) + '...',
-});
+if (__DEV__) {
+  console.log('🔥 Firebase Config (Debug):', {
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain,
+    apiKey: `${firebaseConfig.apiKey.substring(0, 5)}...${firebaseConfig.apiKey.substring(firebaseConfig.apiKey.length - 4)}`,
+    apiKeyLength: firebaseConfig.apiKey.length,
+  });
+}
 
 let app;
-let auth: ReturnType<typeof getAuth>;
+let auth: Auth;
 let db: Firestore;
 
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  console.log('Firebase initialized successfully with AsyncStorage persistence');
+  if (__DEV__) {
+    console.log('✅ Firebase initialized successfully');
+  }
 } else {
-  const { getApp } = require('firebase/app');
-  const { getAuth: getAuthFn } = require('firebase/auth');
   app = getApp();
-  auth = getAuthFn(app);
+  auth = getAuth(app);
   db = getFirestore(app);
-  console.log('Firebase already initialized, reusing existing instance');
+  if (__DEV__) {
+    console.log('✅ Firebase already initialized, reusing existing instance');
+  }
 }
 
 export { app, auth, db };
@@ -43,5 +46,7 @@ export const getFirebaseConfig = () => ({
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain,
   apiKey: firebaseConfig.apiKey,
+  apiKeyMasked: `${firebaseConfig.apiKey.substring(0, 5)}...${firebaseConfig.apiKey.substring(firebaseConfig.apiKey.length - 4)}`,
+  apiKeyLength: firebaseConfig.apiKey.length,
   environment: process.env.NODE_ENV || 'development',
 });

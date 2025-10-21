@@ -155,6 +155,7 @@ export default function SignupScreen() {
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  testID="signup-username-input"
                 />
               </View>
             </View>
@@ -174,6 +175,7 @@ export default function SignupScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
+                  testID="signup-email-input"
                 />
               </View>
             </View>
@@ -210,6 +212,7 @@ export default function SignupScreen() {
                   secureTextEntry
                   autoCapitalize="none"
                   autoCorrect={false}
+                  testID="signup-password-input"
                 />
               </View>
             </View>
@@ -248,6 +251,7 @@ export default function SignupScreen() {
               onPress={handleSignup}
               disabled={!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading}
               activeOpacity={0.8}
+              testID="signup-submit-button"
             >
               <LinearGradient
                 colors={

@@ -250,6 +250,7 @@ export default function PlayScreen() {
             style={styles.primaryAction}
             onPress={handleQuickMatch}
             disabled={isQuickMatchLoading || !profile}
+            testID="quick-match-button"
           >
             <LinearGradient
               colors={[Colors.colors.primary, Colors.colors.primaryDark]}
@@ -434,6 +435,7 @@ function MatchCard({ match }: { match: Match }) {
               e.stopPropagation();
               router.push(`/match/${match.id}`);
             }}
+            testID="view-match-button"
           >
             <Text style={styles.joinButtonText}>View Match</Text>
           </TouchableOpacity>

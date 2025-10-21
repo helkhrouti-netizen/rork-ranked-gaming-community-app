@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
+  sendEmailVerification,
   User as FirebaseUser
 } from 'firebase/auth';
 import { 
@@ -125,12 +126,20 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         level: 1,
       });
 
-      console.log('Signup successful. User created:', newUser.email);
+      await sendEmailVerification(newUser);
+      console.log('✅ Signup successful. Verification email sent to:', newUser.email);
+      
       return { user: newUser };
     } catch (error: any) {
-      console.error('Signup error:', error);
+      console.error('❌ Signup error:', error);
       if (error.code === 'auth/email-already-in-use') {
         throw new Error('Email already in use. Please try logging in instead.');
+      }
+      if (error.code === 'auth/invalid-email') {
+        throw new Error('Invalid email address.');
+      }
+      if (error.code === 'auth/weak-password') {
+        throw new Error('Password should be at least 6 characters.');
       }
       throw error;
     }
@@ -142,15 +151,28 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   ) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log('Login successful:', userCredential.user.email);
-      return { user: userCredential.user };
+      const user = userCredential.user;
+      
+      if (!user.emailVerified) {
+        console.warn('⚠️ Email not verified for:', user.email);
+        throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
+      }
+      
+      console.log('✅ Login successful:', user.email);
+      return { user };
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
+      if (error.message.includes('verify your email')) {
+        throw error;
+      }
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
         throw new Error('Incorrect email or password. Please try again.');
       }
       if (error.code === 'auth/user-not-found') {
         throw new Error('No account found with this email. Please sign up first.');
+      }
+      if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many failed login attempts. Please try again later.');
       }
       throw error;
     }

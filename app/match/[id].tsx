@@ -385,6 +385,7 @@ export default function MatchDetailsScreen() {
             style={styles.actionButton}
             onPress={handleJoinMatch}
             disabled={isJoining || !profile || match.players.length >= match.maxPlayers}
+            testID="join-match-button"
           >
             <LinearGradient
               colors={[Colors.colors.primary, Colors.colors.primaryDark]}
