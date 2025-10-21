@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ import { MatchType } from '@/types';
 import { formatRank, RANK_INFO, getDetailedRankInfo, getRPChangeForMatch } from '@/constants/ranks';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
@@ -38,29 +40,52 @@ export default function CreateMatchScreen() {
   const [scheduledTime, setScheduledTime] = useState<string>('');
   const [showFieldPicker, setShowFieldPicker] = useState(false);
 
-  if (!profile || !profile.rank) {
-    router.back();
-    return null;
-  }
-
-  const detailedRankInfo = getDetailedRankInfo(profile.rank.division, profile.rank.level);
-  const rankInfo = RANK_INFO[profile.rank.division] || RANK_INFO['Cuivre'];
+  const detailedRankInfo = profile?.rank ? getDetailedRankInfo(profile.rank.division, profile.rank.level) : null;
+  const rankInfo = profile?.rank ? (RANK_INFO[profile.rank.division] || RANK_INFO['Cuivre']) : RANK_INFO['Cuivre'];
   const rankColor = detailedRankInfo?.color || rankInfo?.color || '#CD7F32';
   const rankIcon = detailedRankInfo?.icon || rankInfo?.icon || '🥉';
-  const availableFields = getFieldsByCity(profile.city);
+  const availableFields = getFieldsByCity(profile?.city ?? 'CASABLANCA');
 
-  const pointReward = getRPChangeForMatch(matchType, 'win', profile.rank.points);
-  const pointPenalty = Math.abs(getRPChangeForMatch(matchType, 'loss', profile.rank.points));
+  const pointReward = profile?.rank ? getRPChangeForMatch(matchType, 'win', profile.rank.points) : 0;
+  const pointPenalty = profile?.rank ? Math.abs(getRPChangeForMatch(matchType, 'loss', profile.rank.points)) : 0;
 
-  const handleCreateMatch = () => {
-    console.log('Creating match:', {
-      matchType,
-      maxPlayers,
-      field: selectedField,
-      scheduledTime,
-    });
-    router.back();
-  };
+  const handleCreateMatch = useCallback(async () => {
+    if (!profile) return;
+
+    try {
+      const parsedMax = Number.parseInt(maxPlayers, 10);
+      const max = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 4;
+
+      const matchPayload = {
+        hostId: profile.id,
+        type: matchType,
+        status: 'waiting' as const,
+        maxPlayers: max,
+        pointReward,
+        pointPenalty,
+        field: selectedField ?? { name: 'Custom Field', address: '', city: profile.city },
+        scheduledTime: scheduledTime ? new Date().toISOString() : null,
+        tier: profile.rank.division,
+        createdAt: serverTimestamp(),
+      };
+
+      console.log('[CreateMatch] Creating match in Firestore', matchPayload);
+      const matchesRef = collection(db, 'matches');
+      const newMatchDoc = await addDoc(matchesRef, matchPayload);
+
+      const matchPlayersRef = collection(db, 'matchPlayers');
+      await addDoc(matchPlayersRef, {
+        matchId: newMatchDoc.id,
+        userId: profile.id,
+        joinedAt: serverTimestamp(),
+      });
+
+      console.log('[CreateMatch] Match created with id', newMatchDoc.id);
+      router.replace(`/match/${newMatchDoc.id}`);
+    } catch (error) {
+      console.error('[CreateMatch] Failed to create match', error);
+    }
+  }, [profile, matchType, maxPlayers, selectedField, scheduledTime, pointReward, pointPenalty, router]);
 
   return (
     <View style={styles.container}>
@@ -89,14 +114,14 @@ export default function CreateMatchScreen() {
             <View
               style={[styles.hostAvatar, { borderColor: rankColor }]}
             >
-              <Text style={styles.hostAvatarText}>{profile.username[0]}</Text>
+              <Text style={styles.hostAvatarText}>{profile?.username?.[0] ?? '?'}</Text>
             </View>
             <View style={styles.hostDetails}>
-              <Text style={styles.hostName}>{profile.username}</Text>
+              <Text style={styles.hostName}>{profile?.username ?? 'Guest'}</Text>
               <View style={styles.hostRank}>
                 <Text style={styles.hostRankEmoji}>{rankIcon}</Text>
                 <Text style={styles.hostRankText}>
-                  {formatRank(profile.rank)} • {profile.rank.points} RP
+                  {profile?.rank ? `${formatRank(profile.rank)} • ${profile.rank.points} RP` : 'Unranked'}
                 </Text>
               </View>
             </View>
@@ -271,7 +296,7 @@ export default function CreateMatchScreen() {
           >
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Select Field / Club</Text>
-              <Text style={styles.modalSubtitle}>Available in {profile.city}</Text>
+              <Text style={styles.modalSubtitle}>Available in {profile?.city ?? 'CASABLANCA'}</Text>
               {availableFields.map((field) => (
                 <TouchableOpacity
                   key={field.id}
