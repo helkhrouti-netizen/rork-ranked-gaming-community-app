@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,18 @@ export default function LoginScreen() {
   const [error, setError] = useState<string>('');
 
 
+
+  const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+  const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
+  const maskedApiKey = apiKey ? `${apiKey.slice(0, 5)}...${apiKey.slice(-4)}` : 'MISSING';
+
+  useEffect(() => {
+    console.log('Login env debug:', {
+      apiKey: apiKey || 'MISSING',
+      authDomain: authDomain || 'MISSING',
+      apiKeyLength: apiKey ? apiKey.length : 0,
+    });
+  }, [apiKey, authDomain]);
 
   const handleLogin = async () => {
     setError('');
@@ -77,6 +89,12 @@ export default function LoginScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
+          <View style={[styles.debugStrip, { paddingTop: insets.top }]}>
+            <Text style={styles.debugText}>🔧 apiKey: {maskedApiKey}</Text>
+            <Text style={styles.debugText}>authDomain: {authDomain || 'MISSING'}</Text>
+            <Text style={styles.debugText}>apiKey length: {apiKey ? apiKey.length : 0}</Text>
+          </View>
+
           <View style={styles.header}>
             <Text style={styles.emoji}>🎾</Text>
             <Text style={styles.title}>Welcome Back</Text>
@@ -99,6 +117,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
+                  testID="login-email-input"
                 />
               </View>
             </View>
@@ -118,6 +137,7 @@ export default function LoginScreen() {
                   secureTextEntry
                   autoCapitalize="none"
                   autoCorrect={false}
+                  testID="login-password-input"
                 />
               </View>
             </View>
@@ -135,6 +155,7 @@ export default function LoginScreen() {
                   styles.loginButtonDisabled,
               ]}
               onPress={handleLogin}
+              testID="login-submit-button"
               disabled={!email.trim() || !password.trim() || isLoading}
               activeOpacity={0.8}
             >
@@ -169,6 +190,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={styles.signupButton}
               onPress={() => router.replace('/auth/signup' as any)}
+              testID="navigate-to-signup-button"
               activeOpacity={0.8}
             >
               <Text style={styles.signupButtonText}>
@@ -187,6 +209,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.colors.background,
+  },
+  debugStrip: {
+    backgroundColor: 'rgba(255, 165, 0, 0.2)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 165, 0, 0.5)',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  debugText: {
+    fontSize: 10,
+    color: '#FFA500',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   keyboardView: {
     flex: 1,
