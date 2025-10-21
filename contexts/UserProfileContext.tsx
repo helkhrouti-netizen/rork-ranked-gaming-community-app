@@ -4,6 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { MoroccoCity } from '@/constants/cities';
 import { Rank } from '@/constants/ranks';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
+import { profileService } from '@/services/profile';
 
 const USER_PROFILE_KEY = '@user_profile';
 
@@ -41,6 +42,9 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         setUser(currentUser);
         setIsAuthenticated(true);
         await loadProfile(currentUser);
+        
+        const onboardingComplete = await profileService.isOnboardingComplete();
+        setIsOnboarded(onboardingComplete);
       } else {
         setProfile(null);
         setIsOnboarded(false);
@@ -69,7 +73,6 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
 
       await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(userProfile));
       setProfile(userProfile);
-      setIsOnboarded(!!mockUser.username && !!mockUser.city);
     } catch (error) {
       console.error('Failed to load user profile:', error);
     }

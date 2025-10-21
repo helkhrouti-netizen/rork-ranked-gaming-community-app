@@ -27,6 +27,7 @@ import Colors from '@/constants/colors';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
+import { profileService } from '@/services/profile';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -227,6 +228,47 @@ export default function SettingsScreen() {
                   <RefreshCw color={Colors.colors.warning} size={20} />
                 </View>
                 <Text style={styles.settingsItemText}>Reset Mock Data</Text>
+              </View>
+              <ChevronRight color={Colors.colors.textMuted} size={20} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsItem}
+              onPress={async () => {
+                Alert.alert(
+                  'Re-run Onboarding',
+                  'This will clear your onboarding status and let you go through the profile setup again. Your account will not be deleted.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Continue',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await profileService.clearOnboarding();
+                        Alert.alert(
+                          'Onboarding Reset',
+                          'Onboarding has been reset. Please restart the app to go through onboarding again.',
+                          [
+                            {
+                              text: 'OK',
+                              onPress: () => {
+                                logout();
+                                router.replace('/auth/login');
+                              },
+                            },
+                          ]
+                        );
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: Colors.colors.accent + '20' }]}>
+                  <RefreshCw color={Colors.colors.accent} size={20} />
+                </View>
+                <Text style={styles.settingsItemText}>Re-run Onboarding</Text>
               </View>
               <ChevronRight color={Colors.colors.textMuted} size={20} />
             </TouchableOpacity>

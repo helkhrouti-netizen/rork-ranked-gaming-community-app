@@ -9,121 +9,210 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { MapPin, User, Camera, Trophy } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, useRouter } from 'expo-router';
+import { MapPin, User, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import Colors from '@/constants/colors';
-import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
-import { useUserProfile } from '@/contexts/UserProfileContext';
-import { DETAILED_RANKS, DetailedRankInfo } from '@/constants/ranks';
+import { MOROCCO_CITIES, CITY_INFO } from '@/constants/cities';
+import { profileService } from '@/services/profile';
+import { computeRankFromScore, QUESTIONNAIRE_QUESTIONS, QuestionnaireAnswer } from '@/utils/rankScoring';
 
 export default function OnboardingScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { createProfile } = useUserProfile();
 
   const [step, setStep] = useState<number>(1);
+  const [avatar, setAvatar] = useState<string>('');
   const [username, setUsername] = useState<string>('');
-  const [profilePicture, setProfilePicture] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<MoroccoCity | null>(null);
-  const [selectedRank, setSelectedRank] = useState<DetailedRankInfo | null>(null);
-  const [isCreating, setIsCreating] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+  const [city, setCity] = useState<string>('');
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission required', 'Please allow access to your photo library.');
+        return;
+      }
 
-    if (!result.canceled && result.assets[0]) {
-      setProfilePicture(result.assets[0].uri);
-      setError('');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images' as any,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatar(result.assets[0].uri);
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next.avatar;
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission required', 'Please allow access to your camera.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setAvatar(result.assets[0].uri);
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next.avatar;
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const validateStep1 = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!avatar) {
+      newErrors.avatar = 'Please select an avatar';
+    }
+
+    if (!username || username.trim().length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    } else if (username.trim().length > 24) {
+      newErrors.username = 'Username must be 24 characters or less';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      newErrors.username = 'Username can only contain letters, numbers, and underscores';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!city || city.trim().length < 2) {
+      newErrors.city = 'Please enter your city (at least 2 characters)';
+    } else if (city.trim().length > 48) {
+      newErrors.city = 'City name must be 48 characters or less';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep3 = (): boolean => {
+    const answeredCount = Object.keys(answers).length;
+    if (answeredCount < QUESTIONNAIRE_QUESTIONS.length) {
+      Alert.alert('Incomplete', 'Please answer all questions before continuing.');
+      return false;
+    }
+    return true;
   };
 
   const handleNext = () => {
-    setError('');
-
     if (step === 1) {
-      if (!username.trim()) {
-        setError('Please enter a username');
-        return;
+      if (validateStep1()) {
+        setStep(2);
       }
-      if (username.trim().length < 3) {
-        setError('Username must be at least 3 characters');
-        return;
-      }
-      setStep(2);
     } else if (step === 2) {
-      if (!selectedCity) {
-        setError('Please select your city');
-        return;
+      if (validateStep2()) {
+        setStep(3);
       }
-      setStep(3);
     }
   };
 
-  const handleCreateAccount = async () => {
-    setError('');
-
-    if (!selectedRank) {
-      setError('Please select your skill level');
+  const handleFinish = async () => {
+    if (!validateStep3()) {
       return;
     }
 
-    setIsCreating(true);
+    setIsSubmitting(true);
     try {
-      await createProfile(
-        username.trim(),
-        selectedCity!,
-        {
-          division: selectedRank.division,
-          level: selectedRank.level,
-          points: 0,
-        },
-        profilePicture || undefined
+      const questionnaireAnswers: QuestionnaireAnswer[] = QUESTIONNAIRE_QUESTIONS.map(q => ({
+        questionId: q.id,
+        answer: answers[q.id],
+      }));
+
+      const result = computeRankFromScore(questionnaireAnswers);
+      console.log('📊 Computed rank:', result);
+
+      await profileService.saveOnboarding({
+        avatarUri: avatar,
+        username: username.trim(),
+        city: city.trim(),
+        score: result.score,
+        rankTier: result.rankTier,
+        rankSub: result.rankSub,
+        rp: result.rp,
+      });
+
+      Alert.alert(
+        'Welcome to PadelMatch! 🎾',
+        `Your rank is ${result.rankTier} ${result.rankSub} with ${result.rp} RP. Let's start playing!`,
+        [{ text: 'Continue', onPress: () => router.replace('/(tabs)') }]
       );
-      router.replace('/(tabs)');
     } catch (err) {
-      setError('Failed to create account. Please try again.');
-      console.error('Create account error:', err);
+      console.error('Failed to save onboarding:', err);
+      Alert.alert('Error', 'Failed to complete onboarding. Please try again.');
     } finally {
-      setIsCreating(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[Colors.colors.background, Colors.colors.surface]}
-        style={StyleSheet.absoluteFill}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <Stack.Screen 
+        options={{ 
+          headerShown: false,
+        }} 
       />
+      
+      <View style={styles.backgroundContainer}>
+        <LinearGradient
+          colors={[Colors.colors.background, Colors.colors.surface]}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
             <Text style={styles.emoji}>🎾</Text>
             <Text style={styles.title}>Welcome to PadelMatch</Text>
             <Text style={styles.subtitle}>
-              {step === 1 && 'Create your profile to start competing'}
-              {step === 2 && 'Select your city'}
-              {step === 3 && 'Choose your skill level'}
+              {step === 1 && 'Create your profile with avatar and username'}
+              {step === 2 && 'Tell us where you play'}
+              {step === 3 && 'Answer questions to determine your rank'}
             </Text>
           </View>
 
@@ -138,44 +227,69 @@ export default function OnboardingScreen() {
           <View style={styles.form}>
             {step === 1 && (
               <>
-                <View style={styles.profilePictureSection}>
-                  <TouchableOpacity
-                    style={styles.profilePictureContainer}
-                    onPress={pickImage}
-                    activeOpacity={0.7}
-                  >
-                    {profilePicture ? (
-                      <Image source={{ uri: profilePicture }} style={styles.profilePicture} />
+                <View style={styles.avatarSection}>
+                  <Text style={styles.label}>Profile Picture *</Text>
+                  
+                  <View style={styles.avatarContainer}>
+                    {avatar ? (
+                      <Image source={{ uri: avatar }} style={styles.avatarImage} />
                     ) : (
-                      <View style={styles.profilePicturePlaceholder}>
-                        <Camera color={Colors.colors.primary} size={32} strokeWidth={2} />
+                      <View style={styles.avatarPlaceholder}>
+                        <User size={64} color="#9CA3AF" />
                       </View>
                     )}
-                    <View style={styles.profilePictureOverlay}>
-                      <Camera color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
-                    </View>
-                  </TouchableOpacity>
-                  <Text style={styles.profilePictureLabel}>
-                    {profilePicture ? 'Tap to change photo' : 'Add profile photo (optional)'}
-                  </Text>
+                  </View>
+
+                  {errors.avatar && (
+                    <Text style={styles.errorText}>{errors.avatar}</Text>
+                  )}
+
+                  <View style={styles.avatarButtons}>
+                    <TouchableOpacity 
+                      style={styles.avatarButton} 
+                      onPress={pickImage}
+                      testID="avatar-picker"
+                    >
+                      <User size={20} color="#FFFFFF" />
+                      <Text style={styles.avatarButtonText}>Choose Photo</Text>
+                    </TouchableOpacity>
+
+                    {Platform.OS !== 'web' && (
+                      <TouchableOpacity 
+                        style={styles.avatarButton} 
+                        onPress={takePhoto}
+                      >
+                        <Camera size={20} color="#FFFFFF" />
+                        <Text style={styles.avatarButtonText}>Take Photo</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
 
-                <View style={styles.inputContainer}>
-                  <View style={styles.inputIcon}>
-                    <User color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                  </View>
-                  <View style={styles.inputWrapper}>
-                    <Text style={styles.inputLabel}>Username</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={username}
-                      onChangeText={setUsername}
-                      placeholder="Enter your username"
-                      placeholderTextColor={Colors.colors.textMuted}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
+                <View style={styles.inputSection}>
+                  <Text style={styles.label}>Username *</Text>
+                  <TextInput
+                    style={[styles.textInput, errors.username && styles.inputError]}
+                    value={username}
+                    onChangeText={(text) => {
+                      setUsername(text);
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        delete next.username;
+                        return next;
+                      });
+                    }}
+                    placeholder="Enter your username"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={24}
+                    testID="username-input"
+                  />
+                  {errors.username && (
+                    <Text style={styles.errorText}>{errors.username}</Text>
+                  )}
+                  <Text style={styles.hint}>3-24 characters, letters, numbers, and _ only</Text>
                 </View>
               </>
             )}
@@ -184,41 +298,59 @@ export default function OnboardingScreen() {
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <MapPin color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                  <Text style={styles.sectionTitle}>Select Your City</Text>
+                  <Text style={styles.sectionTitle}>Where Do You Play?</Text>
                 </View>
 
-                <View style={styles.citiesGrid}>
-                  {MOROCCO_CITIES.map((city) => {
-                    const cityInfo = CITY_INFO[city];
-                    const isSelected = selectedCity === city;
+                <View style={styles.inputSection}>
+                  <Text style={styles.label}>City *</Text>
+                  <TextInput
+                    style={[styles.textInput, errors.city && styles.inputError]}
+                    value={city}
+                    onChangeText={(text) => {
+                      setCity(text);
+                      setErrors(prev => {
+                        const next = { ...prev };
+                        delete next.city;
+                        return next;
+                      });
+                    }}
+                    placeholder="Enter your city"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    maxLength={48}
+                    testID="city-input"
+                  />
+                  {errors.city && (
+                    <Text style={styles.errorText}>{errors.city}</Text>
+                  )}
+                  <Text style={styles.hint}>2-48 characters</Text>
+                </View>
 
-                    return (
-                      <TouchableOpacity
-                        key={city}
-                        style={[
-                          styles.cityCard,
-                          isSelected && styles.cityCardSelected,
-                        ]}
-                        onPress={() => setSelectedCity(city)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.cityEmoji}>{cityInfo.emoji}</Text>
-                        <Text
-                          style={[
-                            styles.cityName,
-                            isSelected && styles.cityNameSelected,
-                          ]}
+                <View style={styles.citySuggestions}>
+                  <Text style={styles.suggestionsTitle}>Popular cities:</Text>
+                  <View style={styles.citiesGrid}>
+                    {MOROCCO_CITIES.map((moroccoCity) => {
+                      const cityInfo = CITY_INFO[moroccoCity];
+                      return (
+                        <TouchableOpacity
+                          key={moroccoCity}
+                          style={styles.cityChip}
+                          onPress={() => {
+                            setCity(cityInfo.name);
+                            setErrors(prev => {
+                              const next = { ...prev };
+                              delete next.city;
+                              return next;
+                            });
+                          }}
+                          activeOpacity={0.7}
                         >
-                          {cityInfo.name}
-                        </Text>
-                        {isSelected && (
-                          <View style={styles.selectedBadge}>
-                            <Text style={styles.selectedBadgeText}>✓</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                          <Text style={styles.cityChipText}>{cityInfo.emoji} {cityInfo.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
               </View>
             )}
@@ -226,63 +358,45 @@ export default function OnboardingScreen() {
             {step === 3 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Trophy color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-                  <Text style={styles.sectionTitle}>Select Your Skill Level</Text>
+                  <Text style={styles.sectionTitle}>Skill Assessment</Text>
                 </View>
+                <Text style={styles.questionnaireInstructions}>
+                  Rate each statement from 1 (strongly disagree/low) to 5 (strongly agree/high)
+                </Text>
 
-                <ScrollView
-                  style={styles.ranksScrollView}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {DETAILED_RANKS.map((rank) => {
-                    const isSelected =
-                      selectedRank?.division === rank.division &&
-                      selectedRank?.level === rank.level;
-
-                    return (
-                      <TouchableOpacity
-                        key={`${rank.division}-${rank.level}`}
-                        style={[
-                          styles.rankCard,
-                          isSelected && styles.rankCardSelected,
-                        ]}
-                        onPress={() => setSelectedRank(rank)}
-                        activeOpacity={0.7}
-                      >
-                        <LinearGradient
-                          colors={rank.gradient}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={styles.rankGradient}
-                        >
-                          <Text style={styles.rankIcon}>{rank.icon}</Text>
-                        </LinearGradient>
-                        <View style={styles.rankInfo}>
-                          <View style={styles.rankHeader}>
-                            <Text style={styles.rankName}>{rank.displayName}</Text>
-                            <Text style={styles.rankPadLevel}>{rank.padLevel}</Text>
-                          </View>
-                          <Text style={styles.rankDescription} numberOfLines={2}>
-                            {rank.description}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <View style={styles.rankSelectedBadge}>
-                            <Text style={styles.selectedBadgeText}>✓</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                <View style={styles.questionsContainer}>
+                  {QUESTIONNAIRE_QUESTIONS.map((question, index) => (
+                    <View key={question.id} style={styles.questionCard}>
+                      <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                      <Text style={styles.questionText}>{question.text}</Text>
+                      
+                      <View style={styles.answerScale}>
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <TouchableOpacity
+                            key={value}
+                            style={[
+                              styles.scaleButton,
+                              answers[question.id] === value && styles.scaleButtonSelected,
+                            ]}
+                            onPress={() => setAnswers(prev => ({ ...prev, [question.id]: value }))}
+                            testID={`questionnaire-submit`}
+                          >
+                            <Text
+                              style={[
+                                styles.scaleButtonText,
+                                answers[question.id] === value && styles.scaleButtonTextSelected,
+                              ]}
+                            >
+                              {value}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
-
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
 
             <View style={styles.buttonRow}>
               {step > 1 && (
@@ -290,6 +404,7 @@ export default function OnboardingScreen() {
                   style={styles.backButton}
                   onPress={() => setStep(step - 1)}
                   activeOpacity={0.8}
+                  testID="onboarding-back"
                 >
                   <Text style={styles.backButtonText}>Back</Text>
                 </TouchableOpacity>
@@ -299,24 +414,16 @@ export default function OnboardingScreen() {
                 style={[
                   styles.nextButton,
                   step === 1 && styles.nextButtonFull,
-                  ((step === 1 && !username.trim()) ||
-                    (step === 2 && !selectedCity) ||
-                    (step === 3 && (!selectedRank || isCreating))) &&
-                    styles.nextButtonDisabled,
+                  isSubmitting && styles.nextButtonDisabled,
                 ]}
-                onPress={step === 3 ? handleCreateAccount : handleNext}
-                disabled={
-                  (step === 1 && !username.trim()) ||
-                  (step === 2 && !selectedCity) ||
-                  (step === 3 && (!selectedRank || isCreating))
-                }
+                onPress={step === 3 ? handleFinish : handleNext}
+                disabled={isSubmitting}
                 activeOpacity={0.8}
+                testID="onboarding-next"
               >
                 <LinearGradient
                   colors={
-                    ((step === 1 && !username.trim()) ||
-                      (step === 2 && !selectedCity) ||
-                      (step === 3 && (!selectedRank || isCreating)))
+                    isSubmitting
                       ? [Colors.colors.surfaceLight, Colors.colors.surfaceLight]
                       : [Colors.colors.primary, Colors.colors.primaryDark]
                   }
@@ -327,16 +434,13 @@ export default function OnboardingScreen() {
                   <Text
                     style={[
                       styles.nextButtonText,
-                      ((step === 1 && !username.trim()) ||
-                        (step === 2 && !selectedCity) ||
-                        (step === 3 && (!selectedRank || isCreating))) &&
-                        styles.nextButtonTextDisabled,
+                      isSubmitting && styles.nextButtonTextDisabled,
                     ]}
                   >
                     {step === 3
-                      ? isCreating
-                        ? 'Creating...'
-                        : 'Start Playing'
+                      ? isSubmitting
+                        ? 'Saving...'
+                        : 'Finish'
                       : 'Next'}
                   </Text>
                 </LinearGradient>
@@ -345,7 +449,7 @@ export default function OnboardingScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -354,12 +458,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.colors.background,
   },
+  backgroundContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -670,5 +779,156 @@ const styles = StyleSheet.create({
   },
   nextButtonTextDisabled: {
     color: Colors.colors.textMuted,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.colors.border,
+    borderStyle: 'dashed',
+  },
+  avatarButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  avatarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  avatarButtonText: {
+    color: Colors.colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  inputSection: {
+    marginBottom: 24,
+  },
+  textInput: {
+    borderWidth: 2,
+    borderColor: Colors.colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: Colors.colors.textPrimary,
+    backgroundColor: Colors.colors.surface,
+  },
+  inputError: {
+    borderColor: Colors.colors.danger,
+  },
+  hint: {
+    fontSize: 13,
+    color: Colors.colors.textSecondary,
+    marginTop: 6,
+  },
+  citySuggestions: {
+    marginTop: 24,
+  },
+  suggestionsTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
+    marginBottom: 12,
+  },
+  cityChip: {
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+  },
+  cityChipText: {
+    fontSize: 14,
+    color: Colors.colors.textPrimary,
+    fontWeight: '500' as const,
+  },
+  questionnaireInstructions: {
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  questionsContainer: {
+    gap: 20,
+  },
+  questionCard: {
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+  },
+  questionNumber: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.colors.primary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  questionText: {
+    fontSize: 15,
+    color: Colors.colors.textPrimary,
+    marginBottom: 16,
+    lineHeight: 22,
+    fontWeight: '500' as const,
+  },
+  answerScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  scaleButton: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 12,
+    backgroundColor: Colors.colors.background,
+    borderWidth: 2,
+    borderColor: Colors.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scaleButtonSelected: {
+    backgroundColor: Colors.colors.primary,
+    borderColor: Colors.colors.primary,
+  },
+  scaleButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.colors.textSecondary,
+  },
+  scaleButtonTextSelected: {
+    color: Colors.colors.textPrimary,
   },
 });

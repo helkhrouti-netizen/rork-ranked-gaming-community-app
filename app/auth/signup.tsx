@@ -75,11 +75,11 @@ export default function SignupScreen() {
 
       Alert.alert(
         'Account Created',
-        'Your account has been created successfully! You can now log in.',
+        'Your account has been created successfully! Complete your profile to get started.',
         [
           {
-            text: 'OK',
-            onPress: () => router.replace('/auth/login' as any),
+            text: 'Continue',
+            onPress: () => router.replace('/onboarding'),
           },
         ]
       );
