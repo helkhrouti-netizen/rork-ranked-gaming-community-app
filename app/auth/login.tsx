@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -26,20 +26,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
-
-
-
-  const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-  const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  const maskedApiKey = apiKey ? `${apiKey.slice(0, 5)}...${apiKey.slice(-4)}` : 'MISSING';
-
-  useEffect(() => {
-    console.log('Login env debug:', {
-      apiKey: apiKey || 'MISSING',
-      authDomain: authDomain || 'MISSING',
-      apiKeyLength: apiKey ? apiKey.length : 0,
-    });
-  }, [apiKey, authDomain]);
 
   const handleLogin = async () => {
     setError('');
@@ -89,12 +75,6 @@ export default function LoginScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.debugStrip, { paddingTop: insets.top }]}>
-            <Text style={styles.debugText}>🔧 apiKey: {maskedApiKey}</Text>
-            <Text style={styles.debugText}>authDomain: {authDomain || 'MISSING'}</Text>
-            <Text style={styles.debugText}>apiKey length: {apiKey ? apiKey.length : 0}</Text>
-          </View>
-
           <View style={styles.header}>
             <Text style={styles.emoji}>🎾</Text>
             <Text style={styles.title}>Welcome Back</Text>
@@ -209,18 +189,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.colors.background,
-  },
-  debugStrip: {
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 165, 0, 0.5)',
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  debugText: {
-    fontSize: 10,
-    color: '#FFA500',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   keyboardView: {
     flex: 1,
@@ -350,5 +318,4 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.colors.primary,
   },
-
 });

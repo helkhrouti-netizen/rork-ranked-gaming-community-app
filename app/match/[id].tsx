@@ -20,24 +20,12 @@ import {
   Trophy,
   MessageCircle,
 } from 'lucide-react-native';
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-} from 'firebase/firestore';
 
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
-import { Match } from '@/types';
+import { Match, Player } from '@/types';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { db } from '@/lib/firebase';
+import { mockDataProvider, MockUser } from '@/lib/mockData';
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
@@ -51,22 +39,8 @@ export default function MatchDetailsScreen() {
 
   useEffect(() => {
     if (!id || typeof id !== 'string') return;
-
-    const matchDocRef = doc(db, 'matches', id);
-    const unsubscribeMatch = onSnapshot(matchDocRef, () => {
-      loadMatch();
-    });
-
-    const matchPlayersRef = collection(db, 'matchPlayers');
-    const playersQuery = query(matchPlayersRef, where('matchId', '==', id));
-    const unsubscribePlayers = onSnapshot(playersQuery, () => {
-      loadMatch();
-    });
-
-    return () => {
-      unsubscribeMatch();
-      unsubscribePlayers();
-    };
+    loadMatch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadMatch = async () => {
@@ -74,67 +48,33 @@ export default function MatchDetailsScreen() {
 
     try {
       setIsLoading(true);
-      const matchDocRef = doc(db, 'matches', id);
-      const matchDoc = await getDoc(matchDocRef);
+      const mockMatch = await mockDataProvider.getMatch(id);
 
-      if (!matchDoc.exists()) {
+      if (!mockMatch) {
         console.error('Match not found');
         return;
       }
 
-      const matchData = matchDoc.data();
+      const host = await mockDataProvider.getUser(mockMatch.hostId);
+      const matchPlayers = await mockDataProvider.getMatchPlayers(id);
 
-      const hostDocRef = doc(db, 'users', matchData.hostId);
-      const hostDoc = await getDoc(hostDocRef);
-      const hostData = hostDoc.exists() ? hostDoc.data() : null;
-
-      const matchPlayersRef = collection(db, 'matchPlayers');
-      const playersQuery = query(matchPlayersRef, where('matchId', '==', id));
-      const playersSnapshot = await getDocs(playersQuery);
-
-      const players = await Promise.all(
-        playersSnapshot.docs.map(async (playerDoc) => {
-          const playerData = playerDoc.data();
-          const userDocRef = doc(db, 'users', playerData.userId);
-          const userDoc = await getDoc(userDocRef);
-          const userData = userDoc.exists() ? userDoc.data() : null;
-
-          return {
-            id: playerData.userId,
-            username: userData?.username || 'User',
-            rank: userData?.rank || { division: 'Cuivre', level: 1, points: 0 },
-            city: userData?.city || 'CASABLANCA',
-            wins: userData?.wins || 0,
-            losses: userData?.losses || 0,
-            reputation: userData?.reputation || 0,
-            level: userData?.level || 1,
-          };
-        })
-      );
+      if (!host) {
+        console.error('Host not found');
+        return;
+      }
 
       const formattedMatch: Match = {
-        id: matchDoc.id,
-        type: matchData.type || 'official',
-        status: matchData.status || 'waiting',
-        host: {
-          id: matchData.hostId,
-          username: hostData?.username || 'User',
-          rank: hostData?.rank || { division: 'Cuivre', level: 1, points: 0 },
-          city: hostData?.city || 'CASABLANCA',
-          wins: hostData?.wins || 0,
-          losses: hostData?.losses || 0,
-          reputation: hostData?.reputation || 0,
-          level: hostData?.level || 1,
-        },
-        players,
-        maxPlayers: matchData.maxPlayers || 4,
-        field: matchData.field || { name: 'Unknown Field', address: '', city: 'CASABLANCA' },
-        scheduledTime: matchData.scheduledTime
-          ? new Date(matchData.scheduledTime.seconds * 1000)
-          : undefined,
-        pointReward: matchData.pointReward || 50,
-        pointPenalty: matchData.pointPenalty || 30,
-        createdAt: matchData.createdAt ? new Date(matchData.createdAt.seconds * 1000) : new Date(),
+        id: mockMatch.id,
+        type: mockMatch.type,
+        status: mockMatch.status,
+        host: convertMockUserToPlayer(host),
+        players: matchPlayers.map(convertMockUserToPlayer),
+        maxPlayers: mockMatch.maxPlayers,
+        field: mockMatch.field,
+        scheduledTime: mockMatch.scheduledTime,
+        pointReward: mockMatch.pointReward,
+        pointPenalty: mockMatch.pointPenalty,
+        createdAt: mockMatch.createdAt,
       };
 
       setMatch(formattedMatch);
@@ -145,18 +85,24 @@ export default function MatchDetailsScreen() {
     }
   };
 
+  const convertMockUserToPlayer = (user: MockUser): Player => ({
+    id: user.id,
+    username: user.username,
+    rank: user.rank,
+    avatar: user.profilePicture,
+    city: user.city,
+    wins: user.wins,
+    losses: user.losses,
+    reputation: user.reputation,
+    level: user.level,
+  });
+
   const handleJoinMatch = async () => {
     if (!profile || !match || typeof id !== 'string') return;
 
     try {
       setIsJoining(true);
-      const matchPlayersRef = collection(db, 'matchPlayers');
-      await addDoc(matchPlayersRef, {
-        matchId: id,
-        userId: profile.id,
-        joinedAt: serverTimestamp(),
-      });
-
+      await mockDataProvider.joinMatch(id, profile.id);
       await loadMatch();
     } catch (error) {
       console.error('Error joining match:', error);
@@ -170,17 +116,7 @@ export default function MatchDetailsScreen() {
 
     try {
       setIsLeaving(true);
-      const matchPlayersRef = collection(db, 'matchPlayers');
-      const playersQuery = query(
-        matchPlayersRef,
-        where('matchId', '==', id),
-        where('userId', '==', profile.id)
-      );
-      const playersSnapshot = await getDocs(playersQuery);
-
-      const deletePromises = playersSnapshot.docs.map((doc) => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-
+      await mockDataProvider.leaveMatch(id, profile.id);
       await loadMatch();
     } catch (error) {
       console.error('Error leaving match:', error);

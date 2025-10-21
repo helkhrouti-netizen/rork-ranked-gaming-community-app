@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -30,18 +30,6 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-    const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-
-    console.log('=== Firebase Env Vars Debug ===');
-    console.log('apiKey:', apiKey || 'MISSING');
-    console.log('apiKey length:', apiKey ? apiKey.length : 0);
-    console.log('apiKey (masked):', apiKey ? `${apiKey.slice(0, 5)}...${apiKey.slice(-4)}` : 'MISSING');
-    console.log('authDomain:', authDomain || 'MISSING');
-    console.log('===============================');
-  }, []);
 
   const handleSignup = async () => {
     setError('');
@@ -86,8 +74,8 @@ export default function SignupScreen() {
       );
 
       Alert.alert(
-        'Check your email',
-        'We sent you a confirmation link. Please check your inbox to verify your email address.',
+        'Account Created',
+        'Your account has been created successfully! You can now log in.',
         [
           {
             text: 'OK',
@@ -103,25 +91,12 @@ export default function SignupScreen() {
     }
   };
 
-  const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-  const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-
-  const maskedApiKey = apiKey
-    ? `${apiKey.slice(0, 5)}...${apiKey.slice(-4)}`
-    : 'MISSING';
-
   return (
     <View style={styles.container}>
       <LinearGradient
         colors={[Colors.colors.background, Colors.colors.surface]}
         style={StyleSheet.absoluteFill}
       />
-
-      <View style={[styles.debugStrip, { paddingTop: insets.top }]}>
-        <Text style={styles.debugText}>🔧 apiKey: {maskedApiKey}</Text>
-        <Text style={styles.debugText}>authDomain: {authDomain || 'MISSING'}</Text>
-        <Text style={styles.debugText}>apiKey length: {apiKey ? apiKey.length : 0}</Text>
-      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -130,7 +105,7 @@ export default function SignupScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: 40, paddingBottom: insets.bottom + 40 },
+            { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -302,18 +277,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.colors.background,
-  },
-  debugStrip: {
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 165, 0, 0.5)',
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  debugText: {
-    fontSize: 10,
-    color: '#FFA500',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   keyboardView: {
     flex: 1,

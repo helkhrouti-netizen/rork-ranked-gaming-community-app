@@ -21,7 +21,6 @@ import {
   Heart,
   Star,
   ShieldAlert,
-  Activity,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -205,19 +204,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Developer</Text>
-          <TouchableOpacity
-            style={styles.diagnosticsButton}
-            onPress={() => router.push('/firebase-diagnostics' as any)}
-            testID="firebase-diagnostics-button"
-          >
-            <View style={styles.diagnosticsIcon}>
-              <Activity color={Colors.colors.primary} size={20} />
-            </View>
-            <Text style={styles.diagnosticsButtonText}>Firebase Diagnostics</Text>
-          </TouchableOpacity>
-        </View>
+
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Match History</Text>

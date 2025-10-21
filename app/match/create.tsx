@@ -27,8 +27,7 @@ import { MatchType } from '@/types';
 import { formatRank, RANK_INFO, getDetailedRankInfo, getRPChangeForMatch } from '@/constants/ranks';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { mockDataProvider } from '@/lib/mockData';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
@@ -56,36 +55,21 @@ export default function CreateMatchScreen() {
       const parsedMax = Number.parseInt(maxPlayers, 10);
       const max = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 4;
 
-      const matchPayload = {
-        hostId: profile.id,
+      const newMatch = await mockDataProvider.createMatch(profile.id, {
         type: matchType,
-        status: 'waiting' as const,
+        status: 'waiting',
         maxPlayers: max,
         pointReward,
         pointPenalty,
-        field: selectedField ?? { name: 'Custom Field', address: '', city: profile.city },
-        scheduledTime: scheduledTime ? new Date().toISOString() : null,
-        tier: profile.rank.division,
-        createdAt: serverTimestamp(),
-      };
-
-      console.log('[CreateMatch] Creating match in Firestore', matchPayload);
-      const matchesRef = collection(db, 'matches');
-      const newMatchDoc = await addDoc(matchesRef, matchPayload);
-
-      const matchPlayersRef = collection(db, 'matchPlayers');
-      await addDoc(matchPlayersRef, {
-        matchId: newMatchDoc.id,
-        userId: profile.id,
-        joinedAt: serverTimestamp(),
+        field: selectedField ?? { name: 'Custom Field', id: 'custom', address: '', city: profile.city, type: 'outdoor' },
       });
 
-      console.log('[CreateMatch] Match created with id', newMatchDoc.id);
-      router.replace(`/match/${newMatchDoc.id}`);
+      console.log('[CreateMatch] Match created (mock):', newMatch.id);
+      router.replace(`/match/${newMatch.id}`);
     } catch (error) {
       console.error('[CreateMatch] Failed to create match', error);
     }
-  }, [profile, matchType, maxPlayers, selectedField, scheduledTime, pointReward, pointPenalty, router]);
+  }, [profile, matchType, maxPlayers, selectedField, pointReward, pointPenalty, router]);
 
   return (
     <View style={styles.container}>
