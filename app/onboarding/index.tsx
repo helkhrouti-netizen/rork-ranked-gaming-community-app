@@ -19,9 +19,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera, User, ChevronLeft, ChevronRight, MapPin } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { MOROCCO_CITIES, MoroccoCity } from '@/constants/cities';
-import { profileService } from '@/services/profile';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { MOROCCO_CITIES } from '@/constants/cities';
+import { supabaseProfileService } from '@/services/supabaseProfile';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 interface OnboardingAnswer {
   questionIndex: number;
@@ -129,7 +129,7 @@ function computeRankFromScore(score: number) {
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { updateProfile, refreshOnboardingStatus } = useUserProfile();
+  const { refreshProfile, refreshOnboardingStatus } = useSupabaseAuth();
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [state, setState] = useState<OnboardingState>({
@@ -300,7 +300,7 @@ export default function OnboardingScreen() {
 
       console.log('💾 Saving onboarding with completed flag...');
       
-      await profileService.saveOnboarding({
+      await supabaseProfileService.saveOnboarding({
         avatarUri: state.avatarUri,
         username: state.username,
         city: state.city,
@@ -310,11 +310,7 @@ export default function OnboardingScreen() {
         rp,
       });
 
-      await updateProfile({
-        username: state.username,
-        city: state.city as MoroccoCity,
-        profilePicture: state.avatarUri,
-      });
+      await refreshProfile();
 
       await refreshOnboardingStatus();
 

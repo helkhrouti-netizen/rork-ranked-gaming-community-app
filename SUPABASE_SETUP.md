@@ -1,104 +1,150 @@
-# Supabase Setup Instructions
+# Supabase Setup Guide
 
-## Environment Variables
+Your app is now configured to use Supabase! Follow these steps to complete the setup:
 
-Add the following environment variables to your project:
+## ✅ Completed
+
+1. ✅ Supabase client initialized (`lib/supabase.ts`)
+2. ✅ Environment variables configured (`.env`)
+3. ✅ Supabase auth context created (`contexts/SupabaseAuthContext.tsx`)
+4. ✅ Supabase profile service created (`services/supabaseProfile.ts`)
+5. ✅ Auth screens updated to use Supabase
+6. ✅ Onboarding flow updated to save to Supabase
+
+## 🔧 Next Steps
+
+### Step 1: Run the SQL Schema
+
+Open your Supabase project at https://mcgqjqkknmojspocvvxl.supabase.co
+
+1. Go to the **SQL Editor** in your Supabase dashboard
+2. Click **New Query**
+3. Copy and paste the entire contents of `supabase-schema.sql` into the editor
+4. Click **Run** to execute the schema
+
+This will create:
+- `profiles` table with user information
+- `matches` table for game matches
+- `match_players` junction table
+- Row Level Security (RLS) policies
+- Indexes for performance
+- Automatic profile creation trigger
+
+### Step 2: Test the App
+
+1. Start your app: `npm start` or `bun start`
+2. Sign up with a new account
+3. Complete the onboarding process
+4. Your profile should be saved to Supabase!
+
+### Step 3: Verify in Supabase Dashboard
+
+1. Go to **Table Editor** in Supabase
+2. Check the `profiles` table
+3. You should see your user profile with:
+   - username
+   - avatar_uri
+   - city
+   - rank_tier, rank_sub
+   - rp (ranking points)
+   - onboarding_completed = true
+
+## 📋 Database Schema
+
+### profiles table
+- `id` (UUID, primary key, references auth.users)
+- `username` (TEXT)
+- `avatar_uri` (TEXT)
+- `city` (TEXT)
+- `rank_tier` (TEXT) - Cuivre, Silver, Gold, or Platinum
+- `rank_sub` (INTEGER) - 1, 2, or 3
+- `rp` (INTEGER) - Ranking points
+- `wins` (INTEGER)
+- `losses` (INTEGER)
+- `reputation` (DECIMAL)
+- `level` (INTEGER)
+- `onboarding_completed` (BOOLEAN)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+### matches table
+- `id` (UUID, primary key)
+- `type` (TEXT) - 'official' or 'friendly'
+- `status` (TEXT) - 'waiting', 'in_progress', 'completed'
+- `host_id` (UUID, references profiles)
+- `max_players` (INTEGER)
+- `field` (JSONB) - Field information
+- `point_reward` (INTEGER)
+- `point_penalty` (INTEGER)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+### match_players table
+- `match_id` (UUID, references matches)
+- `player_id` (UUID, references profiles)
+- `joined_at` (TIMESTAMP)
+
+## 🔐 Security
+
+Row Level Security (RLS) is enabled on all tables:
+
+- **profiles**: Users can only view/update their own profile
+- **matches**: Anyone can view, only host can update
+- **match_players**: Anyone can view, users can join/leave
+
+## 🚀 What's Working
+
+- ✅ Sign up / Login with Supabase Auth
+- ✅ Onboarding flow saves to Supabase
+- ✅ Profile data persisted in Supabase
+- ✅ Auth state management
+- ✅ Automatic profile creation on signup
+
+## 📝 Environment Variables
+
+Your app uses these Supabase credentials:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+EXPO_PUBLIC_SUPABASE_URL=https://mcgqjqkknmojspocvvxl.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-You can find these in your Supabase project settings under API.
+These are stored in:
+- `.env` file (for development)
+- `app.json` extra config (for Expo)
 
-## Database Setup
+## 🔄 Migration from Mock Data
 
-### 1. Create Users Table
+The app has been migrated from mock data to Supabase:
 
-Run this SQL in your Supabase SQL Editor:
+- **Before**: `UserProfileContext` + `MockProfileService`
+- **After**: `SupabaseAuthProvider` + `SupabaseProfileService`
 
-```sql
--- Create users table
-CREATE TABLE users (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL UNIQUE,
-  username TEXT NOT NULL,
-  phone_number TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+## 🐛 Troubleshooting
 
--- Enable Row Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+### "No authenticated user found"
+- Make sure you're logged in
+- Check Supabase dashboard → Authentication → Users
 
--- Create policies
-CREATE POLICY "Users can read their own data"
-  ON users FOR SELECT
-  USING (auth.uid() = id);
+### "Profile not found"
+- Run the SQL schema to create the trigger
+- The trigger automatically creates a profile when a user signs up
 
-CREATE POLICY "Users can insert their own data"
-  ON users FOR INSERT
-  WITH CHECK (auth.uid() = id);
+### "Permission denied"
+- Check RLS policies in Supabase
+- Make sure the user is authenticated
 
-CREATE POLICY "Users can update their own data"
-  ON users FOR UPDATE
-  USING (auth.uid() = id);
-```
+### Connection errors
+- Verify the Supabase URL and anon key in `.env`
+- Check your internet connection
+- Verify the Supabase project is not paused
 
-### 2. Enable Email Confirmation
+## 📚 Additional Resources
 
-1. Go to your Supabase project dashboard
-2. Navigate to Authentication → Email Templates
-3. Make sure "Confirm signup" is enabled
-4. Customize the email template if desired
+- [Supabase Docs](https://supabase.com/docs)
+- [Supabase Auth Guide](https://supabase.com/docs/guides/auth)
+- [Row Level Security](https://supabase.com/docs/guides/auth/row-level-security)
 
-### 3. Configure Email Settings
+## 🎉 You're All Set!
 
-1. Go to Authentication → Settings
-2. Under "Email Auth", ensure:
-   - Enable email signup is ON
-   - Enable email confirmations is ON
-   - Double confirm email changes is ON (optional, for security)
-
-## How It Works
-
-### Signup Flow
-1. User enters email, password, username, and optional phone number
-2. Supabase creates an auth user with email confirmation required
-3. User data is stored in the `users` table
-4. Confirmation email is sent to the user
-5. User must click the confirmation link in their email
-
-### Login Flow
-1. User enters email and password
-2. System checks if email is confirmed
-3. If not confirmed, user is redirected to check their inbox
-4. If confirmed, user is logged in and can access the app
-
-### Security Features
-- Email confirmation required before login
-- Passwords are securely hashed by Supabase
-- Row Level Security (RLS) ensures users can only access their own data
-- Phone numbers are optional and stored securely
-- Only verified users can log in
-
-## Testing
-
-1. Sign up with a valid email address
-2. Check your inbox for the confirmation email
-3. Click the confirmation link
-4. Log in with your credentials
-5. Complete the onboarding process
-
-## Troubleshooting
-
-### Not receiving emails?
-- Check your spam folder
-- Verify your Supabase email settings
-- Make sure your email provider allows emails from Supabase
-- Check Supabase logs for email sending errors
-
-### Login issues?
-- Ensure email is confirmed before logging in
-- Check that environment variables are set correctly
-- Verify database table exists and RLS policies are correct
-- Check console logs for detailed error messages
+Once you run the SQL schema, your app will be fully connected to Supabase and ready to use!

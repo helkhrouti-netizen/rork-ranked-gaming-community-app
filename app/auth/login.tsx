@@ -15,12 +15,12 @@ import { useRouter } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { login } = useUserProfile();
+  const { login } = useSupabaseAuth();
 
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
