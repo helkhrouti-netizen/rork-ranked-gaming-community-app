@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { supabaseProfileService } from '@/services/supabaseProfile';
 import { Profile } from '@/services/profile';
 
-export const [SupabaseAuthProvider, useSupabaseAuth] = createContextHook(() => {
+const [SupabaseAuthProviderInternal, useSupabaseAuthInternal] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -114,3 +114,13 @@ export const [SupabaseAuthProvider, useSupabaseAuth] = createContextHook(() => {
     [session, user, profile, isLoading, isOnboarded, signup, login, logout, refreshProfile, refreshOnboardingStatus]
   );
 });
+
+export const SupabaseAuthProvider = SupabaseAuthProviderInternal;
+
+export const useSupabaseAuth = () => {
+  const context = useSupabaseAuthInternal();
+  if (!context) {
+    throw new Error('useSupabaseAuth must be used within SupabaseAuthProvider');
+  }
+  return context;
+};
