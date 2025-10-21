@@ -14,7 +14,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     const { error } = await supabase
-      .from('profiles')
+      .from('PROFILES')
       .upsert({
         id: user.id,
         username: data.username,
@@ -43,7 +43,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from('PROFILES')
       .select('*')
       .eq('id', user.id)
       .single();
@@ -76,7 +76,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     const { data } = await supabase
-      .from('profiles')
+      .from('PROFILES')
       .select('onboarding_completed')
       .eq('id', user.id)
       .single();
@@ -91,7 +91,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     await supabase
-      .from('profiles')
+      .from('PROFILES')
       .update({ onboarding_completed: false })
       .eq('id', user.id);
 

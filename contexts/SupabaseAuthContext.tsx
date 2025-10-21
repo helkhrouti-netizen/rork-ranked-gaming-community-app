@@ -68,7 +68,7 @@ const [SupabaseAuthProviderInternal, useSupabaseAuthInternal] = createContextHoo
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('PROFILES')
         .update({
           username: username || email.split('@')[0],
           email: email,
