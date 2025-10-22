@@ -38,7 +38,7 @@ export class SupabaseMatchService {
     });
 
     const { data: match, error } = await supabase
-      .from('MATCHES')
+      .from('matches')
       .insert({
         type: data.type,
         status: 'waiting',
@@ -59,7 +59,7 @@ export class SupabaseMatchService {
     console.log('✅ Match created successfully:', match.id);
 
     const { error: playerError } = await supabase
-      .from('MATCH_PLAYERS')
+      .from('match_players')
       .insert({
         match_id: match.id,
         player_id: user.id,
@@ -76,7 +76,7 @@ export class SupabaseMatchService {
 
   async getMatch(matchId: string): Promise<SupabaseMatch | null> {
     const { data, error } = await supabase
-      .from('MATCHES')
+      .from('matches')
       .select('*')
       .eq('id', matchId)
       .single();
@@ -91,7 +91,7 @@ export class SupabaseMatchService {
 
   async getMatches(): Promise<SupabaseMatch[]> {
     const { data, error } = await supabase
-      .from('MATCHES')
+      .from('matches')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -105,7 +105,7 @@ export class SupabaseMatchService {
 
   async updateMatchStatus(matchId: string, status: string): Promise<void> {
     const { error } = await supabase
-      .from('MATCHES')
+      .from('matches')
       .update({ status })
       .eq('id', matchId);
 

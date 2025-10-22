@@ -14,7 +14,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     const { error } = await supabase
-      .from('PROFILES')
+      .from('profiles')
       .upsert({
         id: user.id,
         username: data.username,
@@ -28,8 +28,8 @@ export class SupabaseProfileService implements ProfileService {
       });
 
     if (error) {
-      console.error('❌ Error saving onboarding to Supabase:', error);
-      throw error;
+      console.error('❌ Error saving onboarding to Supabase:', JSON.stringify(error, null, 2));
+      throw new Error(`Failed to save onboarding: ${error.message || JSON.stringify(error)}`);
     }
 
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
@@ -43,7 +43,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     const { data, error } = await supabase
-      .from('PROFILES')
+      .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
@@ -76,7 +76,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     const { data } = await supabase
-      .from('PROFILES')
+      .from('profiles')
       .select('onboarding_completed')
       .eq('id', user.id)
       .single();
@@ -91,7 +91,7 @@ export class SupabaseProfileService implements ProfileService {
     }
 
     await supabase
-      .from('PROFILES')
+      .from('profiles')
       .update({ onboarding_completed: false })
       .eq('id', user.id);
 
