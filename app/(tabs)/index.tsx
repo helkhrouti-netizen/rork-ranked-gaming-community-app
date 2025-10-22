@@ -22,26 +22,22 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { formatRank, RANK_INFO, Rank, RankDivision } from '@/constants/ranks';
+import { formatRank, RANK_INFO, Rank } from '@/constants/ranks';
 import { Match, Player } from '@/types';
-import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile, isLoading: profileLoading } = useSupabaseAuth();
+  const { profile, isLoading: profileLoading } = useUserProfile();
   const [matchFilter, setMatchFilter] = useState<'all' | 'official' | 'friendly'>('all');
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(true);
   const [isQuickMatchLoading, setIsQuickMatchLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const profileRank: Rank | undefined = profile ? {
-    division: profile.rankTier as RankDivision,
-    level: profile.rankSub,
-    points: profile.rp,
-  } : undefined;
+  const profileRank: Rank | undefined = profile?.rank;
 
   const rankInfo = profileRank ? RANK_INFO[profileRank.division] : RANK_INFO['Cuivre'];
 
@@ -168,7 +164,7 @@ export default function PlayScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.greeting}>Ready to compete?</Text>
+            <Text style={styles.greeting}>Ready to compete</Text>
             <Text style={styles.username}>
               {profileLoading ? 'Loading...' : profile?.username || 'Guest'}
             </Text>
@@ -183,7 +179,7 @@ export default function PlayScreen() {
               >
                 <Text style={styles.rankEmoji}>{rankInfo.icon}</Text>
                 <Text style={styles.rankText}>{profileRank ? formatRank(profileRank) : ''}</Text>
-                <Text style={styles.rankPoints}>{profile.rp} RP</Text>
+                <Text style={styles.rankPoints}>{profile.rank.points} RP</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}

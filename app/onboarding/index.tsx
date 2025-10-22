@@ -20,8 +20,8 @@ import { Camera, User, ChevronLeft, ChevronRight, MapPin } from 'lucide-react-na
 
 import Colors from '@/constants/colors';
 import { MOROCCO_CITIES } from '@/constants/cities';
-import { supabaseProfileService } from '@/services/supabaseProfile';
-import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { profileService } from '@/services/profile';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 
 interface OnboardingAnswer {
   questionIndex: number;
@@ -36,11 +36,11 @@ interface OnboardingState {
 }
 
 const QUESTION_OPTIONS = [
-  { text: 'Never / Not at all', value: 1 },
-  { text: 'Rarely / A little', value: 2 },
-  { text: 'Sometimes / Average', value: 3 },
-  { text: 'Often / Good', value: 4 },
-  { text: 'Always / Very Confident', value: 5 },
+  { text: 'Never', value: 1 },
+  { text: 'Rarely', value: 2 },
+  { text: 'Sometimes', value: 3 },
+  { text: 'Often', value: 4 },
+  { text: 'Always', value: 5 },
 ];
 
 const QUESTIONS = [
@@ -88,19 +88,19 @@ const QUESTIONS = [
   },
   {
     id: 8,
-    text: 'How well do you place the ball where you want — for example, aiming for corners or open spaces?',
+    text: 'How well do you place the ball where you want (corners/open spaces)?',
     weight: 8,
     options: QUESTION_OPTIONS,
   },
   {
     id: 9,
-    text: 'How well do you communicate and plan with your partner during points?',
+    text: 'How well do you communicate and plan with your partner?',
     weight: 12,
     options: QUESTION_OPTIONS,
   },
   {
     id: 10,
-    text: 'How long can you keep your consistency and energy during a full match?',
+    text: 'How long can you keep consistency and energy in a full match?',
     weight: 10,
     options: QUESTION_OPTIONS,
   },
@@ -129,7 +129,7 @@ function computeRankFromScore(score: number) {
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { refreshProfile, refreshOnboardingStatus } = useSupabaseAuth();
+  const { refreshOnboardingStatus } = useUserProfile();
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [state, setState] = useState<OnboardingState>({
@@ -300,7 +300,7 @@ export default function OnboardingScreen() {
 
       console.log('💾 Saving onboarding with completed flag...');
       
-      await supabaseProfileService.saveOnboarding({
+      await profileService.saveOnboarding({
         avatarUri: state.avatarUri,
         username: state.username,
         city: state.city,
@@ -309,8 +309,6 @@ export default function OnboardingScreen() {
         rankSub: rankMapping.sub,
         rp,
       });
-
-      await refreshProfile();
 
       await refreshOnboardingStatus();
 
@@ -440,7 +438,7 @@ export default function OnboardingScreen() {
               style={[styles.nextButton, styles.nextButtonFullWidth]}
               onPress={handleFinish}
               disabled={isLoading || isSubmitting}
-              testID="quiz-submit"
+              testID="finish-onboarding"
             >
               <LinearGradient
                 colors={[Colors.colors.success, Colors.colors.success]}

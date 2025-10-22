@@ -35,81 +35,95 @@ export interface MockData {
   currentUserId: string | null;
 }
 
+const cities: MoroccoCity[] = ['CASABLANCA', 'RABAT', 'MARRAKECH', 'FES', 'TANGER', 'AGADIR'];
+
+function getRandomCity(): MoroccoCity {
+  return cities[Math.floor(Math.random() * cities.length)];
+}
+
+function getRandomWinsLosses(tier: string): [number, number] {
+  const ranges = {
+    'Cuivre': { min: 5, max: 40 },
+    'Silver': { min: 30, max: 80 },
+    'Gold': { min: 70, max: 150 },
+    'Platinum': { min: 120, max: 250 },
+  }[tier] || { min: 5, max: 40 };
+
+  const wins = Math.floor(Math.random() * (ranges.max - ranges.min + 1)) + ranges.min;
+  const losses = Math.floor(wins * (0.3 + Math.random() * 0.5));
+  return [wins, losses];
+}
+
 const DEFAULT_MOCK_USERS: MockUser[] = [
-  {
-    id: 'user-1',
-    email: 'shadow@test.com',
-    password: 'password',
-    username: 'ShadowStrike',
-    city: 'CASABLANCA',
-    rank: getRankFromPoints(3850),
-    wins: 147,
-    losses: 89,
-    reputation: 4.8,
-    level: 42,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-2',
-    email: 'phoenix@test.com',
-    password: 'password',
-    username: 'PhoenixAce',
-    city: 'RABAT',
-    rank: getRankFromPoints(3200),
-    wins: 201,
-    losses: 112,
-    reputation: 4.6,
-    level: 38,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-3',
-    email: 'vortex@test.com',
-    password: 'password',
-    username: 'VortexKing',
-    city: 'CASABLANCA',
-    rank: getRankFromPoints(2750),
-    wins: 98,
-    losses: 72,
-    reputation: 4.7,
-    level: 35,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-4',
-    email: 'nova@test.com',
-    password: 'password',
-    username: 'NovaBlaze',
-    city: 'MARRAKECH',
-    rank: getRankFromPoints(2450),
-    wins: 156,
-    losses: 98,
-    reputation: 4.5,
-    level: 31,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-5',
-    email: 'titan@test.com',
-    password: 'password',
-    username: 'TitanCrush',
-    city: 'CASABLANCA',
-    rank: getRankFromPoints(1890),
-    wins: 89,
-    losses: 67,
-    reputation: 4.3,
-    level: 28,
-    createdAt: new Date().toISOString(),
-  },
-];
+  { id: 'u-01', email: 'shadow@test.com', password: 'password', username: 'ShadowStrike', city: getRandomCity(), rank: getRankFromPoints(950), ...getWinsLosses(950) },
+  { id: 'u-02', email: 'phoenix@test.com', password: 'password', username: 'PhoenixAce', city: getRandomCity(), rank: getRankFromPoints(1020), ...getWinsLosses(1020) },
+  { id: 'u-03', email: 'vortex@test.com', password: 'password', username: 'VortexKing', city: getRandomCity(), rank: getRankFromPoints(880), ...getWinsLosses(880) },
+  { id: 'u-04', email: 'nova@test.com', password: 'password', username: 'NovaBlaze', city: getRandomCity(), rank: getRankFromPoints(790), ...getWinsLosses(790) },
+  { id: 'u-05', email: 'titan@test.com', password: 'password', username: 'TitanCrush', city: getRandomCity(), rank: getRankFromPoints(840), ...getWinsLosses(840) },
+  { id: 'u-06', email: 'bolt@test.com', password: 'password', username: 'BoltRacer', city: getRandomCity(), rank: getRankFromPoints(920), ...getWinsLosses(920) },
+  { id: 'u-07', email: 'echo@test.com', password: 'password', username: 'EchoWave', city: getRandomCity(), rank: getRankFromPoints(770), ...getWinsLosses(770) },
+  { id: 'u-08', email: 'raven@test.com', password: 'password', username: 'RavenClaw', city: getRandomCity(), rank: getRankFromPoints(810), ...getWinsLosses(810) },
+  { id: 'u-09', email: 'storm@test.com', password: 'password', username: 'StormBreaker', city: getRandomCity(), rank: getRankFromPoints(980), ...getWinsLosses(980) },
+  { id: 'u-10', email: 'frost@test.com', password: 'password', username: 'FrostByte', city: getRandomCity(), rank: getRankFromPoints(860), ...getWinsLosses(860) },
+  { id: 'u-11', email: 'blaze@test.com', password: 'password', username: 'BlazeRunner', city: getRandomCity(), rank: getRankFromPoints(680), ...getWinsLosses(680) },
+  { id: 'u-12', email: 'thunder@test.com', password: 'password', username: 'ThunderBolt', city: getRandomCity(), rank: getRankFromPoints(640), ...getWinsLosses(640) },
+  { id: 'u-13', email: 'crystal@test.com', password: 'password', username: 'CrystalEdge', city: getRandomCity(), rank: getRankFromPoints(590), ...getWinsLosses(590) },
+  { id: 'u-14', email: 'lunar@test.com', password: 'password', username: 'LunarFlare', city: getRandomCity(), rank: getRankFromPoints(710), ...getWinsLosses(710) },
+  { id: 'u-15', email: 'solar@test.com', password: 'password', username: 'SolarWind', city: getRandomCity(), rank: getRankFromPoints(620), ...getWinsLosses(620) },
+  { id: 'u-16', email: 'crimson@test.com', password: 'password', username: 'CrimsonFury', city: getRandomCity(), rank: getRankFromPoints(550), ...getWinsLosses(550) },
+  { id: 'u-17', email: 'azure@test.com', password: 'password', username: 'AzureStorm', city: getRandomCity(), rank: getRankFromPoints(670), ...getWinsLosses(670) },
+  { id: 'u-18', email: 'jade@test.com', password: 'password', username: 'JadeDragon', city: getRandomCity(), rank: getRankFromPoints(610), ...getWinsLosses(610) },
+  { id: 'u-19', email: 'amber@test.com', password: 'password', username: 'AmberBlaze', city: getRandomCity(), rank: getRankFromPoints(570), ...getWinsLosses(570) },
+  { id: 'u-20', email: 'onyx@test.com', password: 'password', username: 'OnyxGuard', city: getRandomCity(), rank: getRankFromPoints(700), ...getWinsLosses(700) },
+  { id: 'u-21', email: 'scarlet@test.com', password: 'password', username: 'ScarletFang', city: getRandomCity(), rank: getRankFromPoints(480), ...getWinsLosses(480) },
+  { id: 'u-22', email: 'cobalt@test.com', password: 'password', username: 'CobaltShield', city: getRandomCity(), rank: getRankFromPoints(520), ...getWinsLosses(520) },
+  { id: 'u-23', email: 'ruby@test.com', password: 'password', username: 'RubyArrow', city: getRandomCity(), rank: getRankFromPoints(460), ...getWinsLosses(460) },
+  { id: 'u-24', email: 'sapphire@test.com', password: 'password', username: 'SapphireStrike', city: getRandomCity(), rank: getRankFromPoints(440), ...getWinsLosses(440) },
+  { id: 'u-25', email: 'emerald@test.com', password: 'password', username: 'EmeraldFlash', city: getRandomCity(), rank: getRankFromPoints(490), ...getWinsLosses(490) },
+  { id: 'u-26', email: 'topaz@test.com', password: 'password', username: 'TopazRush', city: getRandomCity(), rank: getRankFromPoints(510), ...getWinsLosses(510) },
+  { id: 'u-27', email: 'pearl@test.com', password: 'password', username: 'PearlWave', city: getRandomCity(), rank: getRankFromPoints(420), ...getWinsLosses(420) },
+  { id: 'u-28', email: 'garnet@test.com', password: 'password', username: 'GarnetBlade', city: getRandomCity(), rank: getRankFromPoints(390), ...getWinsLosses(390) },
+  { id: 'u-29', email: 'quartz@test.com', password: 'password', username: 'QuartzHammer', city: getRandomCity(), rank: getRankFromPoints(360), ...getWinsLosses(360) },
+  { id: 'u-30', email: 'obsidian@test.com', password: 'password', username: 'ObsidianFist', city: getRandomCity(), rank: getRankFromPoints(330), ...getWinsLosses(330) },
+  { id: 'u-31', email: 'meteor@test.com', password: 'password', username: 'MeteorDash', city: getRandomCity(), rank: getRankFromPoints(290), ...getWinsLosses(290) },
+  { id: 'u-32', email: 'comet@test.com', password: 'password', username: 'CometTrail', city: getRandomCity(), rank: getRankFromPoints(250), ...getWinsLosses(250) },
+  { id: 'u-33', email: 'nebula@test.com', password: 'password', username: 'NebulaDrift', city: getRandomCity(), rank: getRankFromPoints(220), ...getWinsLosses(220) },
+  { id: 'u-34', email: 'pulsar@test.com', password: 'password', username: 'PulsarBeat', city: getRandomCity(), rank: getRankFromPoints(190), ...getWinsLosses(190) },
+  { id: 'u-35', email: 'stellar@test.com', password: 'password', username: 'StellarGaze', city: getRandomCity(), rank: getRankFromPoints(150), ...getWinsLosses(150) },
+  { id: 'u-36', email: 'cosmic@test.com', password: 'password', username: 'CosmicRay', city: getRandomCity(), rank: getRankFromPoints(120), ...getWinsLosses(120) },
+  { id: 'u-37', email: 'astral@test.com', password: 'password', username: 'AstralBeam', city: getRandomCity(), rank: getRankFromPoints(90), ...getWinsLosses(90) },
+  { id: 'u-38', email: 'zenith@test.com', password: 'password', username: 'ZenithPeak', city: getRandomCity(), rank: getRankFromPoints(60), ...getWinsLosses(60) },
+  { id: 'u-39', email: 'apex@test.com', password: 'password', username: 'ApexHunter', city: getRandomCity(), rank: getRankFromPoints(30), ...getWinsLosses(30) },
+  { id: 'u-40', email: 'prime@test.com', password: 'password', username: 'PrimeForce', city: getRandomCity(), rank: getRankFromPoints(10), ...getWinsLosses(10) },
+  { id: 'u-41', email: 'night@test.com', password: 'password', username: 'NightShade', city: getRandomCity(), rank: getRankFromPoints(750), ...getWinsLosses(750) },
+  { id: 'u-42', email: 'dawn@test.com', password: 'password', username: 'DawnBreaker', city: getRandomCity(), rank: getRankFromPoints(410), ...getWinsLosses(410) },
+  { id: 'u-43', email: 'dusk@test.com', password: 'password', username: 'DuskWalker', city: getRandomCity(), rank: getRankFromPoints(280), ...getWinsLosses(280) },
+  { id: 'u-44', email: 'twilight@test.com', password: 'password', username: 'TwilightStar', city: getRandomCity(), rank: getRankFromPoints(170), ...getWinsLosses(170) },
+  { id: 'u-45', email: 'eclipse@test.com', password: 'password', username: 'EclipseVoid', city: getRandomCity(), rank: getRankFromPoints(45), ...getWinsLosses(45) },
+].map((user, idx) => ({
+  ...user,
+  reputation: 4.2 + Math.random() * 0.8,
+  level: Math.floor((user.rank.points || 0) / 20) + 1,
+  createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
+}));
+
+function getWinsLosses(rp: number): { wins: number; losses: number } {
+  let tier = 'Cuivre';
+  if (rp >= 720) tier = 'Platinum';
+  else if (rp >= 420) tier = 'Gold';
+  else if (rp >= 180) tier = 'Silver';
+  
+  const [wins, losses] = getRandomWinsLosses(tier);
+  return { wins, losses };
+}
 
 const DEFAULT_MOCK_MATCHES: MockMatch[] = [
   {
     id: 'match-1',
     type: 'official',
     status: 'waiting',
-    hostId: 'user-1',
-    playerIds: ['user-1', 'user-2'],
+    hostId: 'u-01',
+    playerIds: ['u-01', 'u-02'],
     maxPlayers: 4,
     field: FIELDS[0],
     pointReward: 50,
@@ -120,8 +134,8 @@ const DEFAULT_MOCK_MATCHES: MockMatch[] = [
     id: 'match-2',
     type: 'friendly',
     status: 'waiting',
-    hostId: 'user-3',
-    playerIds: ['user-3'],
+    hostId: 'u-03',
+    playerIds: ['u-03'],
     maxPlayers: 4,
     field: FIELDS[1],
     pointReward: 25,
@@ -142,9 +156,9 @@ class MockDataProvider {
         users: DEFAULT_MOCK_USERS,
         matches: DEFAULT_MOCK_MATCHES,
         matchPlayers: [
-          { matchId: 'match-1', userId: 'user-1' },
-          { matchId: 'match-1', userId: 'user-2' },
-          { matchId: 'match-2', userId: 'user-3' },
+          { matchId: 'match-1', userId: 'u-01' },
+          { matchId: 'match-1', userId: 'u-02' },
+          { matchId: 'match-2', userId: 'u-03' },
         ],
         currentUserId: null,
       };
@@ -172,9 +186,9 @@ class MockDataProvider {
       users: DEFAULT_MOCK_USERS,
       matches: DEFAULT_MOCK_MATCHES,
       matchPlayers: [
-        { matchId: 'match-1', userId: 'user-1' },
-        { matchId: 'match-1', userId: 'user-2' },
-        { matchId: 'match-2', userId: 'user-3' },
+        { matchId: 'match-1', userId: 'u-01' },
+        { matchId: 'match-1', userId: 'u-02' },
+        { matchId: 'match-2', userId: 'u-03' },
       ],
       currentUserId: null,
     };
