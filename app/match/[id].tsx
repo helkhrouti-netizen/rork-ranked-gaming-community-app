@@ -24,14 +24,14 @@ import {
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match, Player } from '@/types';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { profile } = useUserProfile();
+  const { profile } = useSupabaseAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
