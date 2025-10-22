@@ -114,8 +114,24 @@ export default function PlayScreen() {
 
     try {
       setIsQuickMatchLoading(true);
+      setErrorMessage('');
 
-      const openMatch = profileRank ? await mockDataProvider.findOpenMatch(profileRank.division) : null;
+      const isInMatch = await mockDataProvider.isUserInActiveMatch(profile.id);
+      
+      if (isInMatch) {
+        const allMatches = await mockDataProvider.getAllMatches();
+        const userMatch = allMatches.find(
+          (m) => (m.status === 'waiting' || m.status === 'in_progress') && m.playerIds.includes(profile.id)
+        );
+        
+        if (userMatch) {
+          console.log('User already in an active match, navigating to it');
+          router.push(`/match/${userMatch.id}`);
+          return;
+        }
+      }
+
+      const openMatch = profileRank ? await mockDataProvider.findOpenMatch(profileRank.division, profile.id) : null;
 
       if (openMatch) {
         await mockDataProvider.joinMatch(openMatch.id, profile.id);
@@ -134,9 +150,9 @@ export default function PlayScreen() {
       }
 
       await loadMatches();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Quick match error:', error);
-      setErrorMessage('Failed to join/create match. Please try again.');
+      setErrorMessage(error?.message || 'Failed to join/create match. Please try again.');
     } finally {
       setIsQuickMatchLoading(false);
     }

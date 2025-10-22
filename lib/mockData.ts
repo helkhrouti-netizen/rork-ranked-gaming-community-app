@@ -342,14 +342,24 @@ class MockDataProvider {
     return players;
   }
 
-  async findOpenMatch(tier: string): Promise<MockMatch | null> {
+  async findOpenMatch(tier: string, userId?: string): Promise<MockMatch | null> {
     if (!this.data) await this.initialize();
 
     const openMatches = this.data!.matches.filter(
-      (m) => m.status === 'waiting' && m.playerIds.length < m.maxPlayers
+      (m) => m.status === 'waiting' && m.playerIds.length < m.maxPlayers && (!userId || !m.playerIds.includes(userId))
     );
 
     return openMatches[0] || null;
+  }
+
+  async isUserInActiveMatch(userId: string): Promise<boolean> {
+    if (!this.data) await this.initialize();
+
+    const activeMatch = this.data!.matches.find(
+      (m) => (m.status === 'waiting' || m.status === 'in_progress') && m.playerIds.includes(userId)
+    );
+
+    return !!activeMatch;
   }
 }
 
