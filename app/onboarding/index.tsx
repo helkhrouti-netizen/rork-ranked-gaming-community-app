@@ -318,9 +318,10 @@ export default function OnboardingScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       console.error('❌ Onboarding save error:', error);
-      Alert.alert('Error', 'Error saving profile, please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error message:', errorMessage);
+      Alert.alert('Error', `Error saving profile: ${errorMessage}\n\nPlease try again.`);
       setIsSubmitting(false);
-    } finally {
       setIsLoading(false);
     }
   };

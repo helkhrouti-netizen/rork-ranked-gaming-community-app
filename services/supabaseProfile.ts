@@ -28,8 +28,14 @@ export class SupabaseProfileService implements ProfileService {
       });
 
     if (error) {
-      console.error('❌ Error saving onboarding to Supabase:', JSON.stringify(error, null, 2));
-      throw new Error(`Failed to save onboarding: ${error.message || JSON.stringify(error)}`);
+      console.error('❌ Error saving onboarding to Supabase:');
+      console.error('Error details:', error);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error hint:', error.hint);
+      console.error('Error details:', error.details);
+      const errorMsg = error.message || error.code || 'Unknown error';
+      throw new Error(`Failed to save onboarding: ${errorMsg}`);
     }
 
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
