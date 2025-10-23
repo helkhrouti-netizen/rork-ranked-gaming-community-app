@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, User, ChevronLeft, ChevronRight, MapPin } from 'lucide-react-native';
+import { PadelCourtSelector } from '@/components/PadelCourtSelector';
+import { CourtPosition } from '@/types';
 
 import Colors from '@/constants/colors';
 import { MOROCCO_CITIES } from '@/constants/cities';
@@ -31,6 +33,7 @@ interface OnboardingState {
   avatarUri: string;
   username: string;
   city: string;
+  preferredSide: CourtPosition | null;
   answers: OnboardingAnswer[];
 }
 
@@ -135,6 +138,7 @@ export default function OnboardingScreen() {
     avatarUri: '',
     username: '',
     city: '',
+    preferredSide: null,
     answers: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -142,12 +146,12 @@ export default function OnboardingScreen() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showCitySuggestions, setShowCitySuggestions] = useState<boolean>(false);
 
-  const totalSteps = 2 + QUESTIONS.length + 1;
+  const totalSteps = 3 + QUESTIONS.length + 1;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
   const currentQuestion = useMemo(() => {
-    if (currentStep >= 2 && currentStep < 2 + QUESTIONS.length) {
-      return QUESTIONS[currentStep - 2];
+    if (currentStep >= 3 && currentStep < 3 + QUESTIONS.length) {
+      return QUESTIONS[currentStep - 3];
     }
     return null;
   }, [currentStep]);
@@ -235,6 +239,10 @@ export default function OnboardingScreen() {
       } else if (state.city.length < 2 || state.city.length > 48) {
         newErrors.city = 'City must be 2-48 characters';
       }
+    } else if (currentStep === 2) {
+      if (!state.preferredSide) {
+        newErrors.preferredSide = 'Please select your preferred court position';
+      }
     } else if (currentQuestion && !currentAnswer) {
       newErrors.question = 'Please select an answer';
     }
@@ -292,6 +300,7 @@ export default function OnboardingScreen() {
       const answersMap: Record<string, any> = {
         avatarUri: state.avatarUri,
         city: state.city,
+        preferredSide: state.preferredSide,
       };
       
       state.answers.forEach((a) => {
@@ -372,10 +381,21 @@ export default function OnboardingScreen() {
             />
           )}
 
+          {currentStep === 2 && (
+            <StepPreferredSide
+              preferredSide={state.preferredSide}
+              error={errors.preferredSide}
+              onSelectSide={(position) => {
+                setState((prev) => ({ ...prev, preferredSide: position }));
+                setErrors((prev) => ({ ...prev, preferredSide: '' }));
+              }}
+            />
+          )}
+
           {currentQuestion && (
             <StepQuestion
               question={currentQuestion}
-              questionNumber={currentStep - 1}
+              questionNumber={currentStep - 2}
               totalQuestions={QUESTIONS.length}
               selectedValue={currentAnswer?.value}
               error={errors.question}
@@ -620,6 +640,35 @@ function StepQuestion({
             </Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+}
+
+function StepPreferredSide({
+  preferredSide,
+  error,
+  onSelectSide,
+}: {
+  preferredSide: CourtPosition | null;
+  error: string | undefined;
+  onSelectSide: (position: CourtPosition) => void;
+}) {
+  return (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Which side do you prefer?</Text>
+      <Text style={styles.stepSubtitle}>
+        Select your preferred position on the padel court
+      </Text>
+
+      <View style={styles.courtSelectorContainer}>
+        <PadelCourtSelector
+          selectedPosition={preferredSide || undefined}
+          onSelectPosition={onSelectSide}
+          showLabels={true}
+        />
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -941,6 +990,9 @@ const styles = StyleSheet.create({
     color: Colors.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  courtSelectorContainer: {
+    marginVertical: 16,
   },
   errorText: {
     fontSize: 14,

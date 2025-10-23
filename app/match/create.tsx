@@ -23,11 +23,12 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { MatchType } from '@/types';
+import { MatchType, CourtPosition } from '@/types';
 import { RANK_INFO, getRPChangeForMatch } from '@/constants/ranks';
 import { useAuth } from '@/contexts/AuthContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
+import { PadelCourtSelector } from '@/components/PadelCourtSelector';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
@@ -38,7 +39,8 @@ export default function CreateMatchScreen() {
   const [selectedField, setSelectedField] = useState<Field | null>(null);
   const [scheduledTime, setScheduledTime] = useState<string>('');
   const [showFieldPicker, setShowFieldPicker] = useState(false);
-  const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [selectedPosition, setSelectedPosition] = useState<CourtPosition | null>(null);
+  const [isCreating,  setIsCreating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
   const rankInfo = user?.level_tier
@@ -63,6 +65,11 @@ export default function CreateMatchScreen() {
       return;
     }
 
+    if (!selectedPosition) {
+      setError('Please select your court position');
+      return;
+    }
+
     setIsCreating(true);
     setError('');
 
@@ -78,6 +85,7 @@ export default function CreateMatchScreen() {
         pointReward,
         pointPenalty,
         field: selectedField,
+        hostPosition: selectedPosition,
       });
 
       console.log('✅ Match created successfully:', newMatch.id);
@@ -88,7 +96,7 @@ export default function CreateMatchScreen() {
     } finally {
       setIsCreating(false);
     }
-  }, [user, matchType, maxPlayers, selectedField, pointReward, pointPenalty, router]);
+  }, [user, matchType, maxPlayers, selectedField, selectedPosition, pointReward, pointPenalty, router]);
 
   return (
     <View style={styles.container}>
@@ -267,6 +275,18 @@ export default function CreateMatchScreen() {
                 placeholderTextColor={Colors.colors.textMuted}
               />
             </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Your Position</Text>
+          <Text style={styles.sectionHint}>Select where you&apos;ll play on the court</Text>
+          <View style={styles.courtContainer}>
+            <PadelCourtSelector
+              selectedPosition={selectedPosition || undefined}
+              onSelectPosition={setSelectedPosition}
+              showLabels={true}
+            />
           </View>
         </View>
       </ScrollView>
@@ -558,6 +578,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.colors.textPrimary,
+  },
+  sectionHint: {
+    fontSize: 12,
+    color: Colors.colors.textMuted,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  courtContainer: {
+    marginTop: 8,
   },
   errorContainer: {
     backgroundColor: Colors.colors.danger + '20',

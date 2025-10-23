@@ -4,6 +4,7 @@ import { MoroccoCity, Field } from '@/constants/cities';
 export type MatchType = 'official' | 'friendly';
 export type MatchStatus = 'waiting' | 'in_progress' | 'completed' | 'pending_validation' | 'disputed';
 export type ScoreSubmissionStatus = 'pending' | 'submitted' | 'validated' | 'disputed';
+export type CourtPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export interface Player {
   id: string;
@@ -15,6 +16,12 @@ export interface Player {
   losses: number;
   reputation: number;
   level: number;
+  preferredSide?: CourtPosition;
+}
+
+export interface MatchPlayerPosition {
+  playerId: string;
+  position: CourtPosition;
 }
 
 export interface Match {
@@ -29,6 +36,8 @@ export interface Match {
   pointReward: number;
   pointPenalty: number;
   createdAt: Date;
+  playerPositions: MatchPlayerPosition[];
+  chatRoomId: string;
 }
 
 export interface Tournament {
@@ -103,4 +112,30 @@ export interface PlayerReputation {
   suspensionUntil?: Date;
   isBanned: boolean;
   badges: string[];
+}
+
+export interface ChatMessage {
+  id: string;
+  chatRoomId: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  timestamp: Date;
+  isRead: boolean;
+}
+
+export interface ChatRoom {
+  id: string;
+  matchId: string;
+  participantIds: string[];
+  messages: ChatMessage[];
+  createdAt: Date;
+}
+
+export interface PrivateChat {
+  id: string;
+  participant1Id: string;
+  participant2Id: string;
+  messages: ChatMessage[];
+  createdAt: Date;
 }

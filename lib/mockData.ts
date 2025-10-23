@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Match } from '@/types';
+import { Match, CourtPosition, ChatMessage, ChatRoom } from '@/types';
 import { getRankFromPoints, Rank } from '@/constants/ranks';
 import { FIELDS, MoroccoCity } from '@/constants/cities';
 
@@ -20,18 +20,22 @@ export interface MockUser {
   reputation: number;
   level: number;
   profilePicture?: string;
+  preferredSide?: CourtPosition;
   createdAt: string;
 }
 
 export interface MockMatch extends Omit<Match, 'host' | 'players'> {
   hostId: string;
   playerIds: string[];
+  playerPositions: { playerId: string; position: CourtPosition }[];
+  chatRoomId: string;
 }
 
 export interface MockData {
   users: MockUser[];
   matches: MockMatch[];
   matchPlayers: { matchId: string; userId: string }[];
+  chatRooms: ChatRoom[];
   currentUserId: string | null;
 }
 
@@ -129,6 +133,11 @@ const DEFAULT_MOCK_MATCHES: MockMatch[] = [
     pointReward: 50,
     pointPenalty: 30,
     createdAt: new Date(),
+    playerPositions: [
+      { playerId: 'u-01', position: 'top-left' },
+      { playerId: 'u-02', position: 'bottom-left' },
+    ],
+    chatRoomId: 'chat-match-1',
   },
   {
     id: 'match-2',
@@ -141,6 +150,10 @@ const DEFAULT_MOCK_MATCHES: MockMatch[] = [
     pointReward: 25,
     pointPenalty: 15,
     createdAt: new Date(),
+    playerPositions: [
+      { playerId: 'u-03', position: 'top-right' },
+    ],
+    chatRoomId: 'chat-match-2',
   },
 ];
 
@@ -159,6 +172,10 @@ class MockDataProvider {
           { matchId: 'match-1', userId: 'u-01' },
           { matchId: 'match-1', userId: 'u-02' },
           { matchId: 'match-2', userId: 'u-03' },
+        ],
+        chatRooms: [
+          { id: 'chat-match-1', matchId: 'match-1', participantIds: ['u-01', 'u-02'], messages: [], createdAt: new Date() },
+          { id: 'chat-match-2', matchId: 'match-2', participantIds: ['u-03'], messages: [], createdAt: new Date() },
         ],
         currentUserId: null,
       };
@@ -189,6 +206,10 @@ class MockDataProvider {
         { matchId: 'match-1', userId: 'u-01' },
         { matchId: 'match-1', userId: 'u-02' },
         { matchId: 'match-2', userId: 'u-03' },
+      ],
+      chatRooms: [
+        { id: 'chat-match-1', matchId: 'match-1', participantIds: ['u-01', 'u-02'], messages: [], createdAt: new Date() },
+        { id: 'chat-match-2', matchId: 'match-2', participantIds: ['u-03'], messages: [], createdAt: new Date() },
       ],
       currentUserId: null,
     };
@@ -276,8 +297,11 @@ class MockDataProvider {
     return this.data!.users;
   }
 
-  async createMatch(hostId: string, matchData: Partial<MockMatch>): Promise<MockMatch> {
+  async createMatch(hostId: string, matchData: Partial<MockMatch> & { hostPosition?: CourtPosition }): Promise<MockMatch> {
     if (!this.data) await this.initialize();
+
+    const chatRoomId = `chat-${Date.now()}`;
+    const hostPosition = matchData.hostPosition || 'top-left';
 
     const newMatch: MockMatch = {
       id: `match-${Date.now()}`,
@@ -290,11 +314,22 @@ class MockDataProvider {
       pointReward: matchData.pointReward || 25,
       pointPenalty: matchData.pointPenalty || 15,
       createdAt: new Date(),
+      playerPositions: [{ playerId: hostId, position: hostPosition }],
+      chatRoomId,
       ...matchData,
+    };
+
+    const chatRoom: ChatRoom = {
+      id: chatRoomId,
+      matchId: newMatch.id,
+      participantIds: [hostId],
+      messages: [],
+      createdAt: new Date(),
     };
 
     this.data!.matches.push(newMatch);
     this.data!.matchPlayers.push({ matchId: newMatch.id, userId: hostId });
+    this.data!.chatRooms.push(chatRoom);
     await this.save();
     return newMatch;
   }
@@ -310,7 +345,7 @@ class MockDataProvider {
     return this.data!.matches;
   }
 
-  async joinMatch(matchId: string, userId: string): Promise<void> {
+  async joinMatch(matchId: string, userId: string, position?: CourtPosition): Promise<void> {
     if (!this.data) await this.initialize();
 
     const match = this.data!.matches.find((m) => m.id === matchId);
@@ -324,9 +359,28 @@ class MockDataProvider {
       throw new Error('Match is full');
     }
 
+    if (position && match.playerPositions.some((p) => p.position === position)) {
+      throw new Error('Position already taken');
+    }
+
+    const selectedPosition = position || this.getFirstAvailablePosition(match.playerPositions);
+
     match.playerIds.push(userId);
+    match.playerPositions.push({ playerId: userId, position: selectedPosition });
     this.data!.matchPlayers.push({ matchId, userId });
+
+    const chatRoom = this.data!.chatRooms.find((c) => c.id === match.chatRoomId);
+    if (chatRoom && !chatRoom.participantIds.includes(userId)) {
+      chatRoom.participantIds.push(userId);
+    }
+
     await this.save();
+  }
+
+  private getFirstAvailablePosition(occupiedPositions: { playerId: string; position: CourtPosition }[]): CourtPosition {
+    const allPositions: CourtPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+    const occupied = occupiedPositions.map((p) => p.position);
+    return allPositions.find((pos) => !occupied.includes(pos)) || 'top-left';
   }
 
   async leaveMatch(matchId: string, userId: string): Promise<void> {
@@ -336,9 +390,16 @@ class MockDataProvider {
     if (!match) throw new Error('Match not found');
 
     match.playerIds = match.playerIds.filter((id) => id !== userId);
+    match.playerPositions = match.playerPositions.filter((p) => p.playerId !== userId);
     this.data!.matchPlayers = this.data!.matchPlayers.filter(
       (mp) => !(mp.matchId === matchId && mp.userId === userId)
     );
+
+    const chatRoom = this.data!.chatRooms.find((c) => c.id === match.chatRoomId);
+    if (chatRoom) {
+      chatRoom.participantIds = chatRoom.participantIds.filter((id) => id !== userId);
+    }
+
     await this.save();
   }
 
@@ -374,6 +435,38 @@ class MockDataProvider {
     );
 
     return !!activeMatch;
+  }
+
+  async getChatRoom(chatRoomId: string): Promise<ChatRoom | null> {
+    if (!this.data) await this.initialize();
+    return this.data!.chatRooms.find((c) => c.id === chatRoomId) || null;
+  }
+
+  async sendMessage(chatRoomId: string, senderId: string, senderName: string, message: string): Promise<ChatMessage> {
+    if (!this.data) await this.initialize();
+
+    const chatRoom = this.data!.chatRooms.find((c) => c.id === chatRoomId);
+    if (!chatRoom) throw new Error('Chat room not found');
+
+    const newMessage: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      chatRoomId,
+      senderId,
+      senderName,
+      message,
+      timestamp: new Date(),
+      isRead: false,
+    };
+
+    chatRoom.messages.push(newMessage);
+    await this.save();
+    return newMessage;
+  }
+
+  async getChatMessages(chatRoomId: string): Promise<ChatMessage[]> {
+    if (!this.data) await this.initialize();
+    const chatRoom = this.data!.chatRooms.find((c) => c.id === chatRoomId);
+    return chatRoom?.messages || [];
   }
 }
 
