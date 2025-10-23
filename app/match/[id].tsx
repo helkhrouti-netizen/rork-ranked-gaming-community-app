@@ -26,6 +26,7 @@ import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match, Player } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
+import { chatService } from '@/services/chat';
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
@@ -222,11 +223,38 @@ export default function MatchDetailsScreen() {
                 </View>
               </View>
             </View>
-            <TouchableOpacity style={styles.messageButton}>
+            <TouchableOpacity 
+              style={styles.messageButton}
+              onPress={async () => {
+                if (!user || !match.host.id) return;
+                try {
+                  const dmChat = await chatService.createOrGetDM({
+                    userId1: user.id,
+                    userId2: match.host.id,
+                  });
+                  router.push(`/chat/${dmChat.id}`);
+                } catch (error) {
+                  console.error('Failed to open DM:', error);
+                  alert('Failed to open chat');
+                }
+              }}
+            >
               <MessageCircle color={Colors.colors.primary} size={20} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
         </View>
+
+        {hasJoined && match.chatRoomId && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.chatButton}
+              onPress={() => router.push(`/chat/${match.chatRoomId}`)}
+            >
+              <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
+              <Text style={styles.chatButtonText}>Match Chat</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Match Information</Text>
@@ -680,5 +708,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: Colors.colors.textSecondary,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.colors.primary,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+  },
+  chatButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.colors.textPrimary,
   },
 });

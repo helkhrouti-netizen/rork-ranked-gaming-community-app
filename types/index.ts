@@ -114,28 +114,49 @@ export interface PlayerReputation {
   badges: string[];
 }
 
-export interface ChatMessage {
+export interface DBChatMessage {
   id: string;
-  chatRoomId: string;
-  senderId: string;
-  senderName: string;
-  message: string;
-  timestamp: Date;
-  isRead: boolean;
+  chat_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  edited_at: string | null;
+  is_system: boolean;
 }
 
-export interface ChatRoom {
-  id: string;
-  matchId: string;
-  participantIds: string[];
-  messages: ChatMessage[];
-  createdAt: Date;
+export interface ChatMessageWithSender extends DBChatMessage {
+  sender_username: string;
+  sender_avatar?: string;
 }
 
-export interface PrivateChat {
+export interface DBChat {
   id: string;
-  participant1Id: string;
-  participant2Id: string;
-  messages: ChatMessage[];
-  createdAt: Date;
+  match_id: string | null;
+  is_dm: boolean;
+  created_at: string;
+}
+
+export interface DBChatMember {
+  chat_id: string;
+  user_id: string;
+  joined_at: string;
+}
+
+export interface DBMatchParticipant {
+  match_id: string;
+  user_id: string;
+  side: 'TL' | 'TR' | 'BL' | 'BR' | null;
+  joined_at: string;
+}
+
+export interface SendMessageParams {
+  chatId: string;
+  body: string;
+  isSystem?: boolean;
+}
+
+export interface ChatMemberInfo {
+  userId: string;
+  username: string;
+  avatar?: string;
 }
