@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -19,14 +19,12 @@ import {
   ChevronRight,
   X,
   Check,
-  Database,
   RefreshCw,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
-import { mockDataProvider } from '@/lib/mockData';
 import { profileService } from '@/services/profile';
 
 export default function SettingsScreen() {
@@ -34,40 +32,6 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const [changeCityModalVisible, setChangeCityModalVisible] = useState(false);
   const [policiesModalVisible, setPoliciesModalVisible] = useState(false);
-  const [mockModeEnabled, setMockModeEnabled] = useState(false);
-
-  useEffect(() => {
-    loadMockMode();
-  }, []);
-
-  const loadMockMode = async () => {
-    const enabled = await mockDataProvider.isMockModeEnabled();
-    setMockModeEnabled(enabled);
-  };
-
-  const toggleMockMode = async () => {
-    const newValue = !mockModeEnabled;
-    await mockDataProvider.setMockMode(newValue);
-    setMockModeEnabled(newValue);
-  };
-
-  const resetMockData = async () => {
-    Alert.alert(
-      'Reset Mock Data',
-      'This will reset all local data to default mock values. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            await mockDataProvider.reset();
-            Alert.alert('Success', 'Mock data has been reset');
-          },
-        },
-      ]
-    );
-  };
 
   const handleChangeCity = async (city: string) => {
     try {
@@ -192,45 +156,6 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Developer</Text>
             
-            <View style={styles.settingsItem}>
-              <View style={styles.settingsItemLeft}>
-                <View style={[styles.iconContainer, { backgroundColor: Colors.colors.success + '20' }]}>
-                  <Database color={Colors.colors.success} size={20} />
-                </View>
-                <View style={styles.settingsItemContent}>
-                  <Text style={styles.settingsItemText}>Use Mock Mode</Text>
-                  <Text style={styles.settingsItemSubtext}>App runs fully offline with local data</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={toggleMockMode}
-                style={[
-                  styles.toggleSwitch,
-                  mockModeEnabled && styles.toggleSwitchActive,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.toggleKnob,
-                    mockModeEnabled && styles.toggleKnobActive,
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.settingsItem}
-              onPress={resetMockData}
-            >
-              <View style={styles.settingsItemLeft}>
-                <View style={[styles.iconContainer, { backgroundColor: Colors.colors.warning + '20' }]}>
-                  <RefreshCw color={Colors.colors.warning} size={20} />
-                </View>
-                <Text style={styles.settingsItemText}>Reset Mock Data</Text>
-              </View>
-              <ChevronRight color={Colors.colors.textMuted} size={20} />
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.settingsItem}
               onPress={async () => {
@@ -579,25 +504,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.colors.textSecondary,
     lineHeight: 22,
-  },
-  toggleSwitch: {
-    width: 51,
-    height: 31,
-    borderRadius: 16,
-    backgroundColor: Colors.colors.border,
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleSwitchActive: {
-    backgroundColor: Colors.colors.success,
-  },
-  toggleKnob: {
-    width: 27,
-    height: 27,
-    borderRadius: 14,
-    backgroundColor: Colors.colors.textPrimary,
-  },
-  toggleKnobActive: {
-    transform: [{ translateX: 20 }],
   },
 });
