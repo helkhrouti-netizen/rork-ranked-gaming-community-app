@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
-import { api, Player } from '@/lib/api';
+import { Player } from '@/lib/api';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
 import { getRankFromPoints } from '@/constants/ranks';
 
@@ -181,28 +181,32 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   }, [clearAuth]);
 
   const refreshProfile = useCallback(async () => {
-    if (!token) return;
+    if (!token || !user) return;
 
     try {
-      const profile = await api.players.me(token);
-      const authUser: AuthUser = {
-        id: profile.id,
-        email: profile.email,
-        username: profile.username,
-        level_score: profile.level_score,
-        level_tier: profile.level_tier,
-      };
-      setUser(authUser);
-      await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
-      setIsOnboarded(!!profile.username && profile.level_score > 0);
-      console.log('🔄 Profile refreshed');
+      console.log('🔄 Refreshing profile (Mock Mode)...');
+      const mockUser = await mockDataProvider.getCurrentUser();
+      if (mockUser) {
+        const authUser: AuthUser = {
+          id: mockUser.id,
+          email: mockUser.email,
+          username: mockUser.username,
+          level_score: mockUser.rank.points || 0,
+          level_tier: mockUser.rank.division,
+        };
+        setUser(authUser);
+        await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
+        setIsOnboarded(!!mockUser.username && (mockUser.rank.points || 0) > 0);
+        console.log('✅ Profile refreshed successfully:', authUser);
+      }
     } catch (error: any) {
+      console.error('Error refreshing profile:', error);
       if (error.message?.includes('Unauthorized')) {
         await clearAuth();
       }
       throw error;
     }
-  }, [token, clearAuth]);
+  }, [token, user, clearAuth]);
 
   const updateProfile = useCallback(async (updates: Partial<Player>) => {
     if (!token || !user) throw new Error('Not authenticated');
@@ -240,36 +244,43 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     try {
       console.log('🔧 Assessing ranking (Mock Mode)', answers);
       
-      let totalScore = 0;
-      let totalWeight = 0;
-      
-      const weights: Record<string, number> = {
-        'q1': 10, 'q2': 12, 'q3': 8, 'q4': 10, 'q5': 10,
-        'q6': 10, 'q7': 10, 'q8': 8, 'q9': 12, 'q10': 10
-      };
+      let totalAnswerScore = 0;
       
       Object.entries(answers).forEach(([key, value]) => {
-        const weight = weights[key] || 10;
-        const score = typeof value === 'number' ? value : 3;
-        totalScore += score * weight;
-        totalWeight += weight;
+        if (key.startsWith('q') && typeof value === 'number') {
+          totalAnswerScore += value;
+        }
       });
       
-      const normalizedScore = Math.round((totalScore / (totalWeight * 5)) * 100);
+      const score100 = ((totalAnswerScore - 10) * 100) / 40;
       
-      let tier = 'Cuivre';
-      if (normalizedScore >= 76) tier = 'Platinum';
-      else if (normalizedScore >= 55) tier = 'Gold';
-      else if (normalizedScore >= 34) tier = 'Silver';
+      const tierMapping = [
+        { min: 0, max: 19, tier: 'Cuivre' as const, sub: 1 as const, rpMid: 30 },
+        { min: 20, max: 26, tier: 'Cuivre' as const, sub: 2 as const, rpMid: 90 },
+        { min: 27, max: 33, tier: 'Cuivre' as const, sub: 3 as const, rpMid: 150 },
+        { min: 34, max: 40, tier: 'Silver' as const, sub: 1 as const, rpMid: 220 },
+        { min: 41, max: 47, tier: 'Silver' as const, sub: 2 as const, rpMid: 300 },
+        { min: 48, max: 54, tier: 'Silver' as const, sub: 3 as const, rpMid: 380 },
+        { min: 55, max: 61, tier: 'Gold' as const, sub: 1 as const, rpMid: 470 },
+        { min: 62, max: 68, tier: 'Gold' as const, sub: 2 as const, rpMid: 570 },
+        { min: 69, max: 75, tier: 'Gold' as const, sub: 3 as const, rpMid: 670 },
+        { min: 76, max: 82, tier: 'Platinum' as const, sub: 1 as const, rpMid: 780 },
+        { min: 83, max: 89, tier: 'Platinum' as const, sub: 2 as const, rpMid: 900 },
+        { min: 90, max: 100, tier: 'Platinum' as const, sub: 3 as const, rpMid: 1020 },
+      ];
       
-      const assessment = { score: normalizedScore, tier };
+      const rankMapping = tierMapping.find((m) => score100 >= m.min && score100 <= m.max) || tierMapping[0];
+      
+      const rpScore = rankMapping.rpMid;
+      
+      const assessment = { score: rpScore, tier: rankMapping.tier };
       
       await updateProfile({
-        level_score: normalizedScore,
-        level_tier: tier,
+        level_score: rpScore,
+        level_tier: rankMapping.tier,
       });
       setIsOnboarded(true);
-      console.log('✅ Ranking assessed (Mock Mode):', assessment);
+      console.log('✅ Ranking assessed (Mock Mode):', assessment, `| score100=${score100}, RP=${rpScore}, tier=${rankMapping.tier} ${rankMapping.sub}`);
       return assessment;
     } catch (error) {
       console.error('Failed to assess ranking:', error);

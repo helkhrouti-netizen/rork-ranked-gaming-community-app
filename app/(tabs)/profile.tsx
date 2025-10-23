@@ -25,12 +25,12 @@ import {
 
 import Colors from '@/constants/colors';
 import { MOCK_MATCH_HISTORY } from '@/mocks/data';
-import { formatRank, RANK_INFO, getNextRankPoints, RankDivision, RankLevel } from '@/constants/ranks';
+import { formatRank, RANK_INFO, getNextRankPoints, getRankFromPoints } from '@/constants/ranks';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, isOnboarded, isLoading } = useAuth();
+  const { user, isAuthenticated, isOnboarded, isLoading, refreshProfile } = useAuth();
   
   useEffect(() => {
     if (!isLoading) {
@@ -38,9 +38,13 @@ export default function ProfileScreen() {
         router.replace('/auth/login');
       } else if (!isOnboarded) {
         router.replace('/onboarding');
+      } else if (user && refreshProfile) {
+        refreshProfile().catch((err) => {
+          console.error('Failed to refresh profile:', err);
+        });
       }
     }
-  }, [isLoading, isAuthenticated, isOnboarded]);
+  }, [isLoading, isAuthenticated, isOnboarded, user, refreshProfile]);
   
   if (isLoading) {
     return (
@@ -58,11 +62,12 @@ export default function ProfileScreen() {
     );
   }
   
-  const rankInfo = RANK_INFO['Cuivre'];
+  const userRank = getRankFromPoints(user.level_score);
+  const rankInfo = RANK_INFO[userRank.division];
   const player = {
     username: user.username,
-    level: 1,
-    rank: { division: 'Cuivre' as RankDivision, level: 1 as RankLevel, points: user.level_score },
+    level: userRank.level,
+    rank: { division: userRank.division, level: userRank.level, points: user.level_score },
     wins: 0,
     losses: 0,
     profilePicture: '',
