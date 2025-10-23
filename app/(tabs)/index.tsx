@@ -22,24 +22,22 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { formatRank, RANK_INFO, Rank } from '@/constants/ranks';
+import { RANK_INFO, formatRank } from '@/constants/ranks';
 import { Match, Player } from '@/types';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile, isLoading: profileLoading } = useUserProfile();
+  const { user, isLoading: profileLoading } = useAuth();
   const [matchFilter, setMatchFilter] = useState<'all' | 'official' | 'friendly'>('all');
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(true);
   const [isQuickMatchLoading, setIsQuickMatchLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const profileRank: Rank | undefined = profile?.rank;
-
-  const rankInfo = profileRank ? RANK_INFO[profileRank.division] : RANK_INFO['Cuivre'];
+  const rankInfo = user?.level_tier ? (RANK_INFO[user.level_tier as keyof typeof RANK_INFO] || RANK_INFO['Cuivre']) : RANK_INFO['Cuivre'];
 
   useEffect(() => {
     loadMatches();
@@ -103,7 +101,7 @@ export default function PlayScreen() {
   });
 
   const handleQuickMatch = async () => {
-    if (!profile) {
+    if (!user) {
       console.log('User must be logged in to quick match');
       return;
     }
@@ -112,12 +110,12 @@ export default function PlayScreen() {
       setIsQuickMatchLoading(true);
       setErrorMessage('');
 
-      const isInMatch = await mockDataProvider.isUserInActiveMatch(profile.id);
+      const isInMatch = await mockDataProvider.isUserInActiveMatch(user.id);
       
       if (isInMatch) {
         const allMatches = await mockDataProvider.getAllMatches();
         const userMatch = allMatches.find(
-          (m) => (m.status === 'waiting' || m.status === 'in_progress') && m.playerIds.includes(profile.id)
+          (m) => (m.status === 'waiting' || m.status === 'in_progress') && m.playerIds.includes(user.id)
         );
         
         if (userMatch) {
@@ -127,19 +125,19 @@ export default function PlayScreen() {
         }
       }
 
-      const openMatch = profileRank ? await mockDataProvider.findOpenMatch(profileRank.division, profile.id) : null;
+      const openMatch = user.level_tier ? await mockDataProvider.findOpenMatch(user.level_tier, user.id) : null;
 
       if (openMatch) {
-        await mockDataProvider.joinMatch(openMatch.id, profile.id);
+        await mockDataProvider.joinMatch(openMatch.id, user.id);
         router.push(`/match/${openMatch.id}`);
       } else {
-        const newMatch = await mockDataProvider.createMatch(profile.id, {
+        const newMatch = await mockDataProvider.createMatch(user.id, {
           type: 'official',
           status: 'waiting',
           maxPlayers: 4,
           pointReward: 50,
           pointPenalty: 30,
-          field: { id: `quick-${Date.now()}`, name: 'Quick Match Field', address: 'Auto-selected', city: profile.city, type: 'indoor' },
+          field: { id: `quick-${Date.now()}`, name: 'Quick Match Field', address: 'Auto-selected', city: 'CASABLANCA', type: 'indoor' },
         });
 
         router.push(`/match/${newMatch.id}`);
@@ -166,10 +164,10 @@ export default function PlayScreen() {
           <View>
             <Text style={styles.greeting}>Ready to compete</Text>
             <Text style={styles.username}>
-              {profileLoading ? 'Loading...' : profile?.username || 'Guest'}
+              {profileLoading ? 'Loading...' : user?.username || 'Guest'}
             </Text>
           </View>
-          {profile && (
+          {user && (
             <TouchableOpacity style={styles.rankBadge}>
               <LinearGradient
                 colors={rankInfo.gradient}
@@ -178,8 +176,8 @@ export default function PlayScreen() {
                 style={styles.rankGradient}
               >
                 <Text style={styles.rankEmoji}>{rankInfo.icon}</Text>
-                <Text style={styles.rankText}>{profileRank ? formatRank(profileRank) : ''}</Text>
-                <Text style={styles.rankPoints}>{profile.rank.points} RP</Text>
+                <Text style={styles.rankText}>{user.level_tier}</Text>
+                <Text style={styles.rankPoints}>{user.level_score} RP</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -195,7 +193,7 @@ export default function PlayScreen() {
           <TouchableOpacity
             style={styles.primaryAction}
             onPress={handleQuickMatch}
-            disabled={isQuickMatchLoading || !profile}
+            disabled={isQuickMatchLoading || !user}
             testID="quick-match-button"
           >
             <LinearGradient
