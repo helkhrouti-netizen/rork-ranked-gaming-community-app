@@ -48,6 +48,8 @@ export default function MatchDetailsScreen() {
 
     try {
       setIsLoading(true);
+      await mockDataProvider.initialize();
+      
       const mockMatch = await mockDataProvider.getMatch(id);
 
       if (!mockMatch) {
@@ -68,13 +70,15 @@ export default function MatchDetailsScreen() {
         type: mockMatch.type,
         status: mockMatch.status,
         host: convertMockUserToPlayer(host),
-        players: matchPlayers.map(convertMockUserToPlayer),
+        players: (matchPlayers || []).map(convertMockUserToPlayer),
         maxPlayers: mockMatch.maxPlayers,
         field: mockMatch.field,
         scheduledTime: mockMatch.scheduledTime,
         pointReward: mockMatch.pointReward,
         pointPenalty: mockMatch.pointPenalty,
         createdAt: mockMatch.createdAt,
+        playerPositions: mockMatch.playerPositions || [],
+        chatRoomId: mockMatch.chatRoomId || '',
       };
 
       setMatch(formattedMatch);
@@ -102,10 +106,12 @@ export default function MatchDetailsScreen() {
 
     try {
       setIsJoining(true);
+      await mockDataProvider.initialize();
       await mockDataProvider.joinMatch(id, user.id);
       await loadMatch();
     } catch (error) {
       console.error('Error joining match:', error);
+      alert(error instanceof Error ? error.message : 'Failed to join match');
     } finally {
       setIsJoining(false);
     }
@@ -116,10 +122,12 @@ export default function MatchDetailsScreen() {
 
     try {
       setIsLeaving(true);
+      await mockDataProvider.initialize();
       await mockDataProvider.leaveMatch(id, user.id);
       await loadMatch();
     } catch (error) {
       console.error('Error leaving match:', error);
+      alert(error instanceof Error ? error.message : 'Failed to leave match');
     } finally {
       setIsLeaving(false);
     }
