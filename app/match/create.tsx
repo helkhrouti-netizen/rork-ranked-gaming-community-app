@@ -24,15 +24,15 @@ import {
 
 import Colors from '@/constants/colors';
 import { MatchType } from '@/types';
-import { RANK_INFO, getDetailedRankInfo, getRPChangeForMatch } from '@/constants/ranks';
-import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { RANK_INFO, getRPChangeForMatch } from '@/constants/ranks';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
-import { supabaseMatchService } from '@/services/supabaseMatch';
+import { mockDataProvider } from '@/lib/mockData';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile } = useSupabaseAuth();
+  const { profile } = useUserProfile();
   const [matchType, setMatchType] = useState<MatchType>('friendly');
   const [maxPlayers, setMaxPlayers] = useState<string>('4');
   const [selectedField, setSelectedField] = useState<Field | null>(null);
@@ -41,17 +41,14 @@ export default function CreateMatchScreen() {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
-  const detailedRankInfo = profile?.rankTier && profile?.rankSub
-    ? getDetailedRankInfo(profile.rankTier, profile.rankSub)
-    : null;
-  const rankInfo = profile?.rankTier
-    ? (RANK_INFO[profile.rankTier as keyof typeof RANK_INFO] || RANK_INFO['Cuivre'])
+  const rankInfo = profile?.rank?.division
+    ? RANK_INFO[profile.rank.division]
     : RANK_INFO['Cuivre'];
-  const rankColor = detailedRankInfo?.color || rankInfo?.color || '#CD7F32';
-  const rankIcon = detailedRankInfo?.icon || rankInfo?.icon || '🥉';
+  const rankColor = rankInfo?.color || '#CD7F32';
+  const rankIcon = rankInfo?.icon || '🥉';
   const availableFields = getFieldsByCity(profile?.city ?? 'CASABLANCA');
 
-  const currentRP = profile?.rp ?? 0;
+  const currentRP = profile?.rank?.points ?? 0;
   const pointReward = getRPChangeForMatch(matchType, 'win', currentRP);
   const pointPenalty = Math.abs(getRPChangeForMatch(matchType, 'loss', currentRP));
 
@@ -73,8 +70,10 @@ export default function CreateMatchScreen() {
       const parsedMax = Number.parseInt(maxPlayers, 10);
       const max = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 4;
 
-      const newMatch = await supabaseMatchService.createMatch({
+      await mockDataProvider.initialize();
+      const newMatch = await mockDataProvider.createMatch(profile.id, {
         type: matchType,
+        status: 'waiting',
         maxPlayers: max,
         pointReward,
         pointPenalty,
@@ -125,8 +124,8 @@ export default function CreateMatchScreen() {
               <View style={styles.hostRank}>
                 <Text style={styles.hostRankEmoji}>{rankIcon}</Text>
                 <Text style={styles.hostRankText}>
-                  {profile?.rankTier && profile?.rankSub
-                    ? `${profile.rankTier} ${profile.rankSub} • ${profile.rp ?? 0} RP`
+                  {profile?.rank
+                    ? `${profile.rank.division} ${profile.rank.level} • ${profile.rank.points} RP`
                     : 'Unranked'}
                 </Text>
               </View>

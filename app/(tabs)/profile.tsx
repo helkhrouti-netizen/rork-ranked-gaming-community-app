@@ -93,7 +93,7 @@ export default function ProfileScreen() {
           >
             <View style={styles.profileHeader}>
               <View style={styles.profileAvatar}>
-                {player.profilePicture ? (
+                {player.profilePicture && player.profilePicture.trim() !== '' ? (
                   <Image 
                     source={{ uri: player.profilePicture }}
                     style={styles.profileAvatarImage}
