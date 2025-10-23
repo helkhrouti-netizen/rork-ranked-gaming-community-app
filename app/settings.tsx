@@ -153,50 +153,52 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Developer</Text>
-            
-            <TouchableOpacity
-              style={styles.settingsItem}
-              onPress={async () => {
-                Alert.alert(
-                  'Re-run Onboarding',
-                  'This will clear your onboarding status and let you go through the profile setup again. Your account will not be deleted.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Continue',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await profileService.clearOnboarding();
-                        Alert.alert(
-                          'Onboarding Reset',
-                          'Onboarding has been reset. Please restart the app to go through onboarding again.',
-                          [
-                            {
-                              text: 'OK',
-                              onPress: () => {
-                                logout();
-                                router.replace('/auth/login');
+          {__DEV__ && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Developer</Text>
+              
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={async () => {
+                  Alert.alert(
+                    'Re-run Onboarding',
+                    'This will clear your onboarding status and let you go through the profile setup again. Your account will not be deleted.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Continue',
+                        style: 'destructive',
+                        onPress: async () => {
+                          await profileService.clearOnboarding();
+                          Alert.alert(
+                            'Onboarding Reset',
+                            'Onboarding has been reset. Please restart the app to go through onboarding again.',
+                            [
+                              {
+                                text: 'OK',
+                                onPress: () => {
+                                  logout();
+                                  router.replace('/auth/login');
+                                },
                               },
-                            },
-                          ]
-                        );
+                            ]
+                          );
+                        },
                       },
-                    },
-                  ]
-                );
-              }}
-            >
-              <View style={styles.settingsItemLeft}>
-                <View style={[styles.iconContainer, { backgroundColor: Colors.colors.accent + '20' }]}>
-                  <RefreshCw color={Colors.colors.accent} size={20} />
+                    ]
+                  );
+                }}
+              >
+                <View style={styles.settingsItemLeft}>
+                  <View style={[styles.iconContainer, { backgroundColor: Colors.colors.accent + '20' }]}>
+                    <RefreshCw color={Colors.colors.accent} size={20} />
+                  </View>
+                  <Text style={styles.settingsItemText}>Re-run Onboarding</Text>
                 </View>
-                <Text style={styles.settingsItemText}>Re-run Onboarding</Text>
-              </View>
-              <ChevronRight color={Colors.colors.textMuted} size={20} />
-            </TouchableOpacity>
-          </View>
+                <ChevronRight color={Colors.colors.textMuted} size={20} />
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Legal</Text>
