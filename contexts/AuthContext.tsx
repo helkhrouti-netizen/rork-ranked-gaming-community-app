@@ -3,6 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { api, Player } from '@/lib/api';
+import { mockDataProvider, MockUser } from '@/lib/mockData';
+import { getRankFromPoints } from '@/constants/ranks';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
@@ -74,30 +76,36 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
 
   const loadAuth = useCallback(async () => {
     try {
+      console.log('🔧 Loading auth (Mock Mode)');
+      await mockDataProvider.initialize();
+      
       const storedToken = await secureStorage.getItem(TOKEN_KEY);
       const storedUser = await secureStorage.getItem(USER_KEY);
 
       if (storedToken && storedUser) {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
         
         try {
-          const profile = await api.players.me(storedToken);
-          const authUser: AuthUser = {
-            id: profile.id,
-            email: profile.email,
-            username: profile.username,
-            level_score: profile.level_score,
-            level_tier: profile.level_tier,
-          };
-          setUser(authUser);
-          await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
-          
-          setIsOnboarded(!!profile.username && profile.level_score > 0);
-        } catch (error: any) {
-          if (error.message?.includes('Unauthorized')) {
+          const mockUser = await mockDataProvider.getCurrentUser();
+          if (mockUser) {
+            const authUser: AuthUser = {
+              id: mockUser.id,
+              email: mockUser.email,
+              username: mockUser.username,
+              level_score: mockUser.rank.points || 0,
+              level_tier: mockUser.rank.division,
+            };
+            setUser(authUser);
+            await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
+            setIsOnboarded(!!mockUser.username && (mockUser.rank.points || 0) > 0);
+          } else {
             await clearAuth();
           }
+        } catch (error: any) {
+          console.error('Error loading mock user:', error);
+          await clearAuth();
         }
       }
     } catch (error) {
@@ -118,20 +126,21 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     username: string
   ) => {
     try {
-      const response = await api.auth.register({ email, password, username });
+      console.log('🔧 Using Mock Mode for signup');
+      const mockUser = await mockDataProvider.signup(email, password, username);
       
       const authUser: AuthUser = {
-        id: response.user.id,
-        email: response.user.email,
-        username: response.user.username,
-        level_score: 0,
-        level_tier: 'Bronze',
+        id: mockUser.id,
+        email: mockUser.email,
+        username: mockUser.username,
+        level_score: mockUser.rank.points || 0,
+        level_tier: mockUser.rank.division,
       };
 
-      await saveAuth(response.access_token, authUser);
+      await saveAuth('mock-token', authUser);
       setIsOnboarded(false);
       
-      console.log('✅ Signup successful:', email);
+      console.log('✅ Signup successful (Mock Mode):', email);
       return { user: authUser };
     } catch (error: any) {
       console.error('❌ Signup error:', error);
@@ -144,21 +153,21 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     password: string
   ) => {
     try {
-      const response = await api.auth.login({ email, password });
+      console.log('🔧 Using Mock Mode for login');
+      const mockUser = await mockDataProvider.login(email, password);
       
-      const profile = await api.players.me(response.access_token);
       const authUser: AuthUser = {
-        id: profile.id,
-        email: profile.email,
-        username: profile.username,
-        level_score: profile.level_score,
-        level_tier: profile.level_tier,
+        id: mockUser.id,
+        email: mockUser.email,
+        username: mockUser.username,
+        level_score: mockUser.rank.points || 0,
+        level_tier: mockUser.rank.division,
       };
 
-      await saveAuth(response.access_token, authUser);
-      setIsOnboarded(!!profile.username && profile.level_score > 0);
+      await saveAuth('mock-token', authUser);
+      setIsOnboarded(!!mockUser.username && (mockUser.rank.points || 0) > 0);
       
-      console.log('✅ Login successful:', email);
+      console.log('✅ Login successful (Mock Mode):', email);
       return { user: authUser };
     } catch (error: any) {
       console.error('❌ Login error:', error);
@@ -196,39 +205,71 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   }, [token, clearAuth]);
 
   const updateProfile = useCallback(async (updates: Partial<Player>) => {
-    if (!token) throw new Error('Not authenticated');
+    if (!token || !user) throw new Error('Not authenticated');
 
     try {
-      const updated = await api.players.update(token, updates);
+      console.log('🔧 Updating profile (Mock Mode)', updates);
+      
+      const mockUpdates: Partial<MockUser> = {};
+      if (updates.username) mockUpdates.username = updates.username;
+      if (updates.level_score !== undefined) {
+        mockUpdates.rank = getRankFromPoints(updates.level_score);
+      }
+      
+      await mockDataProvider.updateUser(user.id, mockUpdates);
+      
       const authUser: AuthUser = {
-        id: updated.id,
-        email: updated.email,
-        username: updated.username,
-        level_score: updated.level_score,
-        level_tier: updated.level_tier,
+        ...user,
+        username: updates.username || user.username,
+        level_score: updates.level_score !== undefined ? updates.level_score : user.level_score,
+        level_tier: updates.level_tier || user.level_tier,
       };
+      
       setUser(authUser);
       await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
-      console.log('✅ Profile updated');
+      console.log('✅ Profile updated (Mock Mode)');
     } catch (error: any) {
-      if (error.message?.includes('Unauthorized')) {
-        await clearAuth();
-      }
+      console.error('Error updating profile:', error);
       throw error;
     }
-  }, [token, clearAuth]);
+  }, [token, user]);
 
   const assessRanking = useCallback(async (answers: Record<string, any>) => {
     if (!token) throw new Error('Not authenticated');
 
     try {
-      const assessment = await api.rankings.assess(token, answers);
+      console.log('🔧 Assessing ranking (Mock Mode)', answers);
+      
+      let totalScore = 0;
+      let totalWeight = 0;
+      
+      const weights: Record<string, number> = {
+        'q1': 10, 'q2': 12, 'q3': 8, 'q4': 10, 'q5': 10,
+        'q6': 10, 'q7': 10, 'q8': 8, 'q9': 12, 'q10': 10
+      };
+      
+      Object.entries(answers).forEach(([key, value]) => {
+        const weight = weights[key] || 10;
+        const score = typeof value === 'number' ? value : 3;
+        totalScore += score * weight;
+        totalWeight += weight;
+      });
+      
+      const normalizedScore = Math.round((totalScore / (totalWeight * 5)) * 100);
+      
+      let tier = 'Cuivre';
+      if (normalizedScore >= 76) tier = 'Platinum';
+      else if (normalizedScore >= 55) tier = 'Gold';
+      else if (normalizedScore >= 34) tier = 'Silver';
+      
+      const assessment = { score: normalizedScore, tier };
+      
       await updateProfile({
-        level_score: assessment.score,
-        level_tier: assessment.tier,
+        level_score: normalizedScore,
+        level_tier: tier,
       });
       setIsOnboarded(true);
-      console.log('✅ Ranking assessed:', assessment);
+      console.log('✅ Ranking assessed (Mock Mode):', assessment);
       return assessment;
     } catch (error) {
       console.error('Failed to assess ranking:', error);
