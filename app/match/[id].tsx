@@ -72,14 +72,14 @@ export default function MatchDetailsScreen() {
         type: mockMatch.type,
         status: mockMatch.status,
         host: convertMockUserToPlayer(host),
-        players: safeMatchPlayers.map(convertMockUserToPlayer),
+        players: Array.isArray(safeMatchPlayers) ? safeMatchPlayers.map(convertMockUserToPlayer) : [],
         maxPlayers: mockMatch.maxPlayers,
         field: mockMatch.field,
         scheduledTime: mockMatch.scheduledTime,
         pointReward: mockMatch.pointReward,
         pointPenalty: mockMatch.pointPenalty,
         createdAt: mockMatch.createdAt,
-        playerPositions: mockMatch.playerPositions || [],
+        playerPositions: Array.isArray(mockMatch.playerPositions) ? mockMatch.playerPositions : [],
         chatRoomId: mockMatch.chatRoomId || '',
       };
 
@@ -146,7 +146,7 @@ export default function MatchDetailsScreen() {
 
   const hostRankInfo = RANK_INFO[match.host.rank.division];
   const isOfficial = match.type === 'official';
-  const hasJoined = user ? match.players.some((p) => p.id === user.id) : false;
+  const hasJoined = user && match.players ? match.players.some((p) => p.id === user.id) : false;
 
   return (
     <View style={styles.container}>
@@ -238,7 +238,7 @@ export default function MatchDetailsScreen() {
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Players</Text>
                 <Text style={styles.infoValue}>
-                  {match.players.length}/{match.maxPlayers}
+                  {match.players?.length || 0}/{match.maxPlayers}
                 </Text>
               </View>
             </View>
@@ -271,10 +271,10 @@ export default function MatchDetailsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Players ({match.players.length}/{match.maxPlayers})
+            Players ({match.players?.length || 0}/{match.maxPlayers})
           </Text>
           <View style={styles.playersList}>
-            {match.players.map((player) => {
+            {(match.players || []).map((player) => {
               const playerRankInfo = RANK_INFO[player.rank.division];
               return (
                 <View key={player.id} style={styles.playerCard}>
@@ -297,8 +297,8 @@ export default function MatchDetailsScreen() {
               );
             })}
 
-            {match.players.length < match.maxPlayers &&
-              Array.from({ length: match.maxPlayers - match.players.length }).map((_, index) => (
+            {(match.players?.length || 0) < match.maxPlayers &&
+              Array.from({ length: match.maxPlayers - (match.players?.length || 0) }).map((_, index) => (
                 <View key={`empty-${index}`} style={styles.emptyPlayerCard}>
                   <View style={styles.emptyPlayerAvatar}>
                     <Users color={Colors.colors.textMuted} size={20} />
@@ -330,7 +330,7 @@ export default function MatchDetailsScreen() {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleJoinMatch}
-            disabled={isJoining || !user || match.players.length >= match.maxPlayers}
+            disabled={isJoining || !user || (match.players?.length || 0) >= match.maxPlayers}
             testID="join-match-button"
           >
             <LinearGradient
@@ -343,7 +343,7 @@ export default function MatchDetailsScreen() {
                 <ActivityIndicator color={Colors.colors.textPrimary} size="small" />
               ) : (
                 <Text style={styles.actionButtonText}>
-                  {match.players.length >= match.maxPlayers ? 'Match Full' : 'Join Match'}
+                  {(match.players?.length || 0) >= match.maxPlayers ? 'Match Full' : 'Join Match'}
                 </Text>
               )}
             </LinearGradient>
