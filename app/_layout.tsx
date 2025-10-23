@@ -5,7 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
-import { UserProfileProvider, useUserProfile } from "@/contexts/UserProfileContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { trpc } from "@/lib/trpc";
 import { httpBatchLink } from "@trpc/client";
@@ -16,7 +16,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { isLoading, isAuthenticated, isOnboarded } = useUserProfile();
+  const { isLoading, isAuthenticated, isOnboarded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -99,13 +99,13 @@ export default function RootLayout() {
   return (
     <trpc.Provider client={trpcReactClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <UserProfileProvider>
+        <AuthProvider>
           <GestureHandlerRootView style={styles.container}>
             <ErrorBoundary>
               <RootLayoutNav />
             </ErrorBoundary>
           </GestureHandlerRootView>
-        </UserProfileProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

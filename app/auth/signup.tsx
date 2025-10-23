@@ -15,12 +15,12 @@ import { useRouter } from 'expo-router';
 import { Mail, User, Lock, Phone } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signup } = useUserProfile();
+  const { signup } = useAuth();
 
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -68,8 +68,7 @@ export default function SignupScreen() {
       await signup(
         email.trim().toLowerCase(),
         password.trim(),
-        username.trim(),
-        phoneNumber.trim()
+        username.trim()
       );
 
       console.log('✅ Sign up successful, profile created in database');

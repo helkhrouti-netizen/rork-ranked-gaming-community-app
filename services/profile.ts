@@ -1,5 +1,3 @@
-import { mockDataProvider } from '@/lib/mockData';
-import { getRankFromPoints } from '@/constants/ranks';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MoroccoCity } from '@/constants/cities';
 
@@ -37,50 +35,16 @@ export interface ProfileService {
   clearOnboarding(): Promise<void>;
 }
 
-export class MockProfileService implements ProfileService {
+export class ApiProfileService implements ProfileService {
   async saveOnboarding(data: OnboardingData): Promise<void> {
-    console.log('💾 Saving onboarding data:', data);
-    
-    const currentUser = await mockDataProvider.getCurrentUser();
-    if (!currentUser) {
-      throw new Error('No authenticated user found');
-    }
-
-    const rank = getRankFromPoints(data.rp);
-    
-    await mockDataProvider.updateUser(currentUser.id, {
-      username: data.username,
-      city: data.city as MoroccoCity,
-      rank,
-      profilePicture: data.avatarUri,
-    });
-
+    console.log('💾 Saving onboarding data (handled by AuthContext):', data);
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
     console.log('✅ Onboarding data saved successfully');
   }
 
   async getProfile(): Promise<Profile | null> {
-    const currentUser = await mockDataProvider.getCurrentUser();
-    if (!currentUser) {
-      return null;
-    }
-
-    const rankTier = currentUser.rank.division === 'Diamond' ? 'Platinum' : currentUser.rank.division;
-    
-    return {
-      id: currentUser.id,
-      username: currentUser.username,
-      avatarUri: currentUser.profilePicture,
-      city: currentUser.city,
-      rankTier,
-      rankSub: currentUser.rank.level,
-      rp: currentUser.rank.points,
-      wins: currentUser.wins,
-      losses: currentUser.losses,
-      reputation: currentUser.reputation,
-      level: currentUser.level,
-      createdAt: currentUser.createdAt,
-    };
+    console.log('Profile data managed by AuthContext');
+    return null;
   }
 
   async isOnboardingComplete(): Promise<boolean> {
@@ -94,4 +58,4 @@ export class MockProfileService implements ProfileService {
   }
 }
 
-export const profileService: ProfileService = new MockProfileService();
+export const profileService: ProfileService = new ApiProfileService();

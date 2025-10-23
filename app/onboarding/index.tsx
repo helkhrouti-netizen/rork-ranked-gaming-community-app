@@ -20,8 +20,7 @@ import { Camera, User, ChevronLeft, ChevronRight, MapPin } from 'lucide-react-na
 
 import Colors from '@/constants/colors';
 import { MOROCCO_CITIES } from '@/constants/cities';
-import { profileService } from '@/services/profile';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OnboardingAnswer {
   questionIndex: number;
@@ -129,7 +128,7 @@ function computeRankFromScore(score: number) {
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { refreshOnboardingStatus } = useUserProfile();
+  const { assessRanking } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [state, setState] = useState<OnboardingState>({
@@ -288,29 +287,18 @@ export default function OnboardingScreen() {
       const score100 = ((totalScore - 10) * 100) / 40;
       const rankMapping = computeRankFromScore(score100);
 
-      const rpBase = {
-        Cuivre: 0,
-        Silver: 180,
-        Gold: 420,
-        Platinum: 720,
-      }[rankMapping.tier];
-
-      const rpSub = (rankMapping.sub - 1) * 80;
-      const rp = rpBase + rpSub + 40;
-
       console.log('💾 Saving onboarding with completed flag...');
       
-      await profileService.saveOnboarding({
+      const answersMap: Record<string, any> = {
         avatarUri: state.avatarUri,
-        username: state.username,
         city: state.city,
-        score: score100,
-        rankTier: rankMapping.tier,
-        rankSub: rankMapping.sub,
-        rp,
+      };
+      
+      state.answers.forEach((a) => {
+        answersMap[`q${a.questionIndex}`] = a.value;
       });
-
-      await refreshOnboardingStatus();
+      
+      await assessRanking(answersMap);
 
       console.log('✅ Onboarding completed, navigating to home...');
       router.replace('/(tabs)');
