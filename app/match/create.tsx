@@ -25,14 +25,14 @@ import {
 import Colors from '@/constants/colors';
 import { MatchType } from '@/types';
 import { RANK_INFO, getRPChangeForMatch } from '@/constants/ranks';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile } = useUserProfile();
+  const { user } = useAuth();
   const [matchType, setMatchType] = useState<MatchType>('friendly');
   const [maxPlayers, setMaxPlayers] = useState<string>('4');
   const [selectedField, setSelectedField] = useState<Field | null>(null);
@@ -41,19 +41,19 @@ export default function CreateMatchScreen() {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
-  const rankInfo = profile?.rank?.division
-    ? RANK_INFO[profile.rank.division]
+  const rankInfo = user?.level_tier
+    ? (RANK_INFO[user.level_tier as keyof typeof RANK_INFO] || RANK_INFO['Cuivre'])
     : RANK_INFO['Cuivre'];
   const rankColor = rankInfo?.color || '#CD7F32';
   const rankIcon = rankInfo?.icon || '🥉';
-  const availableFields = getFieldsByCity(profile?.city ?? 'CASABLANCA');
+  const availableFields = getFieldsByCity('CASABLANCA');
 
-  const currentRP = profile?.rank?.points ?? 0;
+  const currentRP = user?.level_score ?? 0;
   const pointReward = getRPChangeForMatch(matchType, 'win', currentRP);
   const pointPenalty = Math.abs(getRPChangeForMatch(matchType, 'loss', currentRP));
 
   const handleCreateMatch = useCallback(async () => {
-    if (!profile) {
+    if (!user) {
       setError('You must be logged in to create a match');
       return;
     }
@@ -71,7 +71,7 @@ export default function CreateMatchScreen() {
       const max = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 4;
 
       await mockDataProvider.initialize();
-      const newMatch = await mockDataProvider.createMatch(profile.id, {
+      const newMatch = await mockDataProvider.createMatch(user.id, {
         type: matchType,
         status: 'waiting',
         maxPlayers: max,
@@ -88,7 +88,7 @@ export default function CreateMatchScreen() {
     } finally {
       setIsCreating(false);
     }
-  }, [profile, matchType, maxPlayers, selectedField, pointReward, pointPenalty, router]);
+  }, [user, matchType, maxPlayers, selectedField, pointReward, pointPenalty, router]);
 
   return (
     <View style={styles.container}>
@@ -117,15 +117,15 @@ export default function CreateMatchScreen() {
             <View
               style={[styles.hostAvatar, { borderColor: rankColor }]}
             >
-              <Text style={styles.hostAvatarText}>{profile?.username?.[0] ?? '?'}</Text>
+              <Text style={styles.hostAvatarText}>{user?.username?.[0] ?? '?'}</Text>
             </View>
             <View style={styles.hostDetails}>
-              <Text style={styles.hostName}>{profile?.username ?? 'Guest'}</Text>
+              <Text style={styles.hostName}>{user?.username ?? 'Guest'}</Text>
               <View style={styles.hostRank}>
                 <Text style={styles.hostRankEmoji}>{rankIcon}</Text>
                 <Text style={styles.hostRankText}>
-                  {profile?.rank
-                    ? `${profile.rank.division} ${profile.rank.level} • ${profile.rank.points} RP`
+                  {user?.level_tier
+                    ? `${user.level_tier} • ${user.level_score} RP`
                     : 'Unranked'}
                 </Text>
               </View>
@@ -316,7 +316,7 @@ export default function CreateMatchScreen() {
           >
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Select Field / Club</Text>
-              <Text style={styles.modalSubtitle}>Available in {profile?.city ?? 'CASABLANCA'}</Text>
+              <Text style={styles.modalSubtitle}>Available in CASABLANCA</Text>
               {availableFields.map((field) => (
                 <TouchableOpacity
                   key={field.id}

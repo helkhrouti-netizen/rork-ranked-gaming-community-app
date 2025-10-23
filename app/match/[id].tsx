@@ -24,14 +24,14 @@ import {
 import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match, Player } from '@/types';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { profile } = useUserProfile();
+  const { user } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
@@ -98,11 +98,11 @@ export default function MatchDetailsScreen() {
   });
 
   const handleJoinMatch = async () => {
-    if (!profile || !match || typeof id !== 'string') return;
+    if (!user || !match || typeof id !== 'string') return;
 
     try {
       setIsJoining(true);
-      await mockDataProvider.joinMatch(id, profile.id);
+      await mockDataProvider.joinMatch(id, user.id);
       await loadMatch();
     } catch (error) {
       console.error('Error joining match:', error);
@@ -112,11 +112,11 @@ export default function MatchDetailsScreen() {
   };
 
   const handleLeaveMatch = async () => {
-    if (!profile || !match || typeof id !== 'string') return;
+    if (!user || !match || typeof id !== 'string') return;
 
     try {
       setIsLeaving(true);
-      await mockDataProvider.leaveMatch(id, profile.id);
+      await mockDataProvider.leaveMatch(id, user.id);
       await loadMatch();
     } catch (error) {
       console.error('Error leaving match:', error);
@@ -136,7 +136,7 @@ export default function MatchDetailsScreen() {
 
   const hostRankInfo = RANK_INFO[match.host.rank.division];
   const isOfficial = match.type === 'official';
-  const hasJoined = profile ? match.players.some((p) => p.id === profile.id) : false;
+  const hasJoined = user ? match.players.some((p) => p.id === user.id) : false;
 
   return (
     <View style={styles.container}>
@@ -320,7 +320,7 @@ export default function MatchDetailsScreen() {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleJoinMatch}
-            disabled={isJoining || !profile || match.players.length >= match.maxPlayers}
+            disabled={isJoining || !user || match.players.length >= match.maxPlayers}
             testID="join-match-button"
           >
             <LinearGradient

@@ -24,14 +24,14 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
 import { profileService } from '@/services/profile';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, logout } = useUserProfile();
+  const { user, logout } = useAuth();
   const [changeCityModalVisible, setChangeCityModalVisible] = useState(false);
   const [policiesModalVisible, setPoliciesModalVisible] = useState(false);
   const [mockModeEnabled, setMockModeEnabled] = useState(false);
@@ -71,8 +71,6 @@ export default function SettingsScreen() {
 
   const handleChangeCity = async (city: string) => {
     try {
-      const cityKey = city.toUpperCase().replace(/ /g, '_') as MoroccoCity;
-      await updateProfile({ city: cityKey });
       setChangeCityModalVisible(false);
       Alert.alert('Success', 'City updated successfully');
     } catch {
@@ -100,9 +98,7 @@ export default function SettingsScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
       try {
-        await updateProfile({ profilePicture: base64Image });
         Alert.alert('Success', 'Profile picture updated successfully');
       } catch {
         Alert.alert('Error', 'Failed to update profile picture');
@@ -132,16 +128,11 @@ export default function SettingsScreen() {
     );
   };
 
-  if (!profile) {
+  if (!user) {
     return null;
   }
 
-  const getCityInfo = (cityValue: MoroccoCity | string) => {
-    const cityKey = cityValue.toUpperCase().replace(/ /g, '_') as MoroccoCity;
-    return CITY_INFO[cityKey] || { emoji: '📍', name: cityValue as string };
-  };
-
-  const cityInfo = getCityInfo(profile.city);
+  const cityInfo = { emoji: '📍', name: 'CASABLANCA' };
 
   return (
     <>
@@ -338,7 +329,7 @@ export default function SettingsScreen() {
                 {MOROCCO_CITIES.map((city) => {
                   const cityKey = city.toUpperCase().replace(/ /g, '_') as MoroccoCity;
                   const modalCityInfo = CITY_INFO[cityKey] || { emoji: '📍', name: city };
-                  const isSelected = profile.city === city || profile.city === cityKey;
+                  const isSelected = false;
 
                   return (
                     <TouchableOpacity

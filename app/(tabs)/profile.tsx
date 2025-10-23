@@ -25,12 +25,12 @@ import {
 
 import Colors from '@/constants/colors';
 import { MOCK_MATCH_HISTORY } from '@/mocks/data';
-import { formatRank, RANK_INFO, getNextRankPoints } from '@/constants/ranks';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { formatRank, RANK_INFO, getNextRankPoints, RankDivision, RankLevel } from '@/constants/ranks';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, isAuthenticated, isOnboarded, isLoading } = useUserProfile();
+  const { user, isAuthenticated, isOnboarded, isLoading } = useAuth();
   
   useEffect(() => {
     if (!isLoading) {
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
     );
   }
   
-  if (!profile) {
+  if (!user) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>Loading profile...</Text>
@@ -58,8 +58,16 @@ export default function ProfileScreen() {
     );
   }
   
-  const player = profile;
-  const rankInfo = RANK_INFO[player.rank.division];
+  const rankInfo = RANK_INFO['Cuivre'];
+  const player = {
+    username: user.username,
+    level: 1,
+    rank: { division: 'Cuivre' as RankDivision, level: 1 as RankLevel, points: user.level_score },
+    wins: 0,
+    losses: 0,
+    profilePicture: '',
+    reputation: 5.0,
+  };
   const nextRankPoints = getNextRankPoints(player.rank.points);
   const progressToNext = ((player.rank.points % 250) / 250) * 100;
   const winRate = ((player.wins / (player.wins + player.losses)) * 100).toFixed(1);
