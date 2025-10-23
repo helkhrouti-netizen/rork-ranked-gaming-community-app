@@ -89,15 +89,13 @@ export default function CreateMatchScreen() {
       });
 
       console.log('✅ Match created successfully:', newMatch.id);
-      console.log('🔧 Router object:', router);
       
-      if (!router || typeof router.replace !== 'function') {
-        console.error('❌ Router is undefined or replace method is missing');
-        setError('Navigation error. Please try again.');
-        return;
+      if (router && typeof router.push === 'function') {
+        router.push(`/match/${newMatch.id}`);
+      } else {
+        console.error('❌ Router navigation failed');
+        setError('Match created but navigation failed. Please go to home screen.');
       }
-      
-      router.replace(`/match/${newMatch.id}`);
     } catch (err: any) {
       console.error('❌ Failed to create match:', err);
       setError(err.message || 'Failed to create match. Please try again.');

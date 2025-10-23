@@ -68,12 +68,14 @@ export default function MatchDetailsScreen() {
 
       const safeMatchPlayers = Array.isArray(matchPlayers) ? matchPlayers : [];
 
+      const safePlayers = Array.isArray(safeMatchPlayers) ? safeMatchPlayers.map(convertMockUserToPlayer) : [];
+
       const formattedMatch: Match = {
         id: mockMatch.id,
         type: mockMatch.type,
         status: mockMatch.status,
         host: convertMockUserToPlayer(host),
-        players: Array.isArray(safeMatchPlayers) ? safeMatchPlayers.map(convertMockUserToPlayer) : [],
+        players: safePlayers,
         maxPlayers: mockMatch.maxPlayers,
         field: mockMatch.field,
         scheduledTime: mockMatch.scheduledTime,
@@ -302,7 +304,7 @@ export default function MatchDetailsScreen() {
             Players ({match.players?.length || 0}/{match.maxPlayers})
           </Text>
           <View style={styles.playersList}>
-            {(match.players || []).map((player) => {
+            {Array.isArray(match.players) && match.players.map((player) => {
               const playerRankInfo = RANK_INFO[player.rank.division];
               return (
                 <View key={player.id} style={styles.playerCard}>
@@ -325,8 +327,8 @@ export default function MatchDetailsScreen() {
               );
             })}
 
-            {(match.players?.length || 0) < match.maxPlayers &&
-              Array.from({ length: match.maxPlayers - (match.players?.length || 0) }).map((_, index) => (
+            {Array.isArray(match.players) && match.players.length < match.maxPlayers &&
+              Array.from({ length: match.maxPlayers - match.players.length }).map((_, index) => (
                 <View key={`empty-${index}`} style={styles.emptyPlayerCard}>
                   <View style={styles.emptyPlayerAvatar}>
                     <Users color={Colors.colors.textMuted} size={20} />
