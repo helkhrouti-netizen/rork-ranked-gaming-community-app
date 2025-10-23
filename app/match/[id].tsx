@@ -65,12 +65,14 @@ export default function MatchDetailsScreen() {
         return;
       }
 
+      const safeMatchPlayers = Array.isArray(matchPlayers) ? matchPlayers : [];
+
       const formattedMatch: Match = {
         id: mockMatch.id,
         type: mockMatch.type,
         status: mockMatch.status,
         host: convertMockUserToPlayer(host),
-        players: (matchPlayers || []).map(convertMockUserToPlayer),
+        players: safeMatchPlayers.map(convertMockUserToPlayer),
         maxPlayers: mockMatch.maxPlayers,
         field: mockMatch.field,
         scheduledTime: mockMatch.scheduledTime,
