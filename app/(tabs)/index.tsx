@@ -73,6 +73,8 @@ export default function PlayScreen() {
             pointReward: mockMatch.pointReward,
             pointPenalty: mockMatch.pointPenalty,
             createdAt: mockMatch.createdAt,
+            playerPositions: mockMatch.playerPositions,
+            chatRoomId: mockMatch.chatRoomId,
           };
 
           return formattedMatch;
@@ -138,9 +140,14 @@ export default function PlayScreen() {
           pointReward: 50,
           pointPenalty: 30,
           field: { id: `quick-${Date.now()}`, name: 'Quick Match Field', address: 'Auto-selected', city: 'CASABLANCA', type: 'indoor' },
+          hostPosition: 'top-left',
         });
 
-        router.push(`/match/${newMatch.id}`);
+        if (router && typeof router.push === 'function') {
+          router.push(`/match/${newMatch.id}`);
+        } else {
+          console.error('❌ Router is undefined or push method is missing in quick match');
+        }
       }
 
       await loadMatches();
