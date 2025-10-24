@@ -26,12 +26,15 @@ import Colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
 import { profileService } from '@/services/profile';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mockDataProvider } from '@/lib/mockData';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const [changeCityModalVisible, setChangeCityModalVisible] = useState(false);
   const [policiesModalVisible, setPoliciesModalVisible] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   const handleChangeCity = async (city: string) => {
     try {
@@ -68,6 +71,46 @@ export default function SettingsScreen() {
         Alert.alert('Error', 'Failed to update profile picture');
       }
     }
+  };
+
+  const handleClearAllData = async () => {
+    Alert.alert(
+      '🗑️ Clear All Data',
+      'This will clear ALL local cache and data, including AsyncStorage. Use this if the app is stuck with cached errors. App will reload after clearing.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear Everything',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsClearing(true);
+              console.log('🗑️ Clearing all local data...');
+              
+              await AsyncStorage.clear();
+              await mockDataProvider.reset();
+              
+              console.log('✅ All data cleared successfully');
+              Alert.alert(
+                'Success',
+                'All local data cleared! Please restart the app.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => router.replace('/auth/login'),
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('❌ Failed to clear data:', error);
+              Alert.alert('Error', 'Failed to clear data. Check console.');
+            } finally {
+              setIsClearing(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleLogout = () => {
@@ -157,6 +200,27 @@ export default function SettingsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Developer</Text>
               
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={handleClearAllData}
+                disabled={isClearing}
+              >
+                <View style={styles.settingsItemLeft}>
+                  <View style={[styles.iconContainer, { backgroundColor: Colors.colors.warning + '20' }]}>
+                    <RefreshCw color={Colors.colors.warning} size={20} />
+                  </View>
+                  <View style={styles.settingsItemContent}>
+                    <Text style={styles.settingsItemText}>
+                      {isClearing ? 'Clearing...' : '🗑️ Clear All Cache & Data'}
+                    </Text>
+                    <Text style={styles.settingsItemSubtext}>
+                      Nuclear option: Clears AsyncStorage
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color={Colors.colors.textMuted} size={20} />
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.settingsItem}
                 onPress={async () => {
