@@ -19,9 +19,14 @@ function RootLayoutNav() {
   const { isLoading, isAuthenticated, isOnboarded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   useEffect(() => {
-    if (isLoading) return;
+    setIsNavigationReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !isNavigationReady) return;
 
     const inAuth = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
@@ -33,50 +38,49 @@ function RootLayoutNav() {
     } else if (isAuthenticated && isOnboarded && (inAuth || inOnboarding)) {
       router.replace('/(tabs)');
     }
-  }, [isLoading, isAuthenticated, isOnboarded, segments, router]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.colors.primary} />
-      </View>
-    );
-  }
+  }, [isLoading, isAuthenticated, isOnboarded, segments, router, isNavigationReady]);
 
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-      <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="match/create"
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-        }}
-      />
-      <Stack.Screen
-        name="match/[id]"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="tournament/[id]"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="match/result/[id]"
-        options={{
-          headerShown: false,
-        }}
-      />
+    <>
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={Colors.colors.primary} />
+        </View>
+      )}
+      <Stack screenOptions={{ headerBackTitle: "Back" }}>
+        <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="match/create"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="match/[id]"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="tournament/[id]"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="match/result/[id]"
+          options={{
+            headerShown: false,
+          }}
+        />
 
-      <Stack.Screen name="+not-found" />
-    </Stack>
+        <Stack.Screen name="+not-found" />
+      </Stack>
+    </>
   );
 }
 
@@ -115,10 +119,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.colors.background,
+    zIndex: 1000,
   },
 });
