@@ -24,9 +24,10 @@ export interface UserProfile {
 export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   const [user, setUser] = useState<MockUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   const loadProfile = useCallback(async (mockUser: MockUser) => {
     try {
@@ -51,6 +52,9 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   }, []);
 
   const loadCurrentUser = useCallback(async () => {
+    if (initialized) return;
+    
+    setIsLoading(true);
     try {
       await mockDataProvider.initialize();
       const currentUser = await mockDataProvider.getCurrentUser();
@@ -70,12 +74,15 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       console.error('Failed to load current user:', error);
     } finally {
       setIsLoading(false);
+      setInitialized(true);
     }
-  }, [loadProfile]);
+  }, [loadProfile, initialized]);
 
   useEffect(() => {
-    loadCurrentUser();
-  }, [loadCurrentUser]);
+    if (!initialized) {
+      loadCurrentUser();
+    }
+  }, [loadCurrentUser, initialized]);
 
   const signup = useCallback(async (
     email: string,

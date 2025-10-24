@@ -45,8 +45,9 @@ export interface AuthUser {
 const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   const saveAuth = useCallback(async (authToken: string, authUser: AuthUser) => {
     try {
@@ -75,6 +76,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   }, []);
 
   const loadAuth = useCallback(async () => {
+    if (initialized) return;
+    
+    setIsLoading(true);
     try {
       console.log('🔧 Loading auth');
       await mockDataProvider.initialize();
@@ -112,12 +116,15 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       await clearAuth();
     } finally {
       setIsLoading(false);
+      setInitialized(true);
     }
-  }, [clearAuth]);
+  }, [clearAuth, initialized]);
 
   useEffect(() => {
-    loadAuth();
-  }, [loadAuth]);
+    if (!initialized) {
+      loadAuth();
+    }
+  }, [loadAuth, initialized]);
 
   const signup = useCallback(async (
     email: string,
