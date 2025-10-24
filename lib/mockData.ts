@@ -316,8 +316,11 @@ class MockDataProvider {
       createdAt: new Date(),
       playerPositions: [{ playerId: hostId, position: hostPosition }],
       chatRoomId,
-      ...matchData,
     };
+
+    if (matchData.scheduledTime) {
+      newMatch.scheduledTime = matchData.scheduledTime;
+    }
 
     const chatRoom: ChatRoom = {
       id: chatRoomId,
@@ -326,6 +329,16 @@ class MockDataProvider {
       messages: [],
       createdAt: new Date(),
     };
+
+    if (!Array.isArray(this.data!.matches)) {
+      this.data!.matches = [];
+    }
+    if (!Array.isArray(this.data!.matchPlayers)) {
+      this.data!.matchPlayers = [];
+    }
+    if (!Array.isArray(this.data!.chatRooms)) {
+      this.data!.chatRooms = [];
+    }
 
     this.data!.matches.push(newMatch);
     this.data!.matchPlayers.push({ matchId: newMatch.id, userId: hostId });
@@ -351,6 +364,13 @@ class MockDataProvider {
     const match = this.data!.matches.find((m) => m.id === matchId);
     if (!match) throw new Error('Match not found');
 
+    if (!Array.isArray(match.playerIds)) {
+      match.playerIds = [];
+    }
+    if (!Array.isArray(match.playerPositions)) {
+      match.playerPositions = [];
+    }
+
     if (match.playerIds.includes(userId)) {
       throw new Error('Already in match');
     }
@@ -367,6 +387,10 @@ class MockDataProvider {
 
     match.playerIds.push(userId);
     match.playerPositions.push({ playerId: userId, position: selectedPosition });
+    
+    if (!Array.isArray(this.data!.matchPlayers)) {
+      this.data!.matchPlayers = [];
+    }
     this.data!.matchPlayers.push({ matchId, userId });
 
     const chatRoom = this.data!.chatRooms.find((c) => c.id === match.chatRoomId);
@@ -389,11 +413,17 @@ class MockDataProvider {
     const match = this.data!.matches.find((m) => m.id === matchId);
     if (!match) throw new Error('Match not found');
 
-    match.playerIds = match.playerIds.filter((id) => id !== userId);
-    match.playerPositions = match.playerPositions.filter((p) => p.playerId !== userId);
-    this.data!.matchPlayers = this.data!.matchPlayers.filter(
-      (mp) => !(mp.matchId === matchId && mp.userId === userId)
-    );
+    if (Array.isArray(match.playerIds)) {
+      match.playerIds = match.playerIds.filter((id) => id !== userId);
+    }
+    if (Array.isArray(match.playerPositions)) {
+      match.playerPositions = match.playerPositions.filter((p) => p.playerId !== userId);
+    }
+    if (Array.isArray(this.data!.matchPlayers)) {
+      this.data!.matchPlayers = this.data!.matchPlayers.filter(
+        (mp) => !(mp.matchId === matchId && mp.userId === userId)
+      );
+    }
 
     const chatRoom = this.data!.chatRooms.find((c) => c.id === match.chatRoomId);
     if (chatRoom) {

@@ -52,8 +52,10 @@ export default function PlayScreen() {
       await mockDataProvider.initialize();
       const mockMatches = await mockDataProvider.getAllMatches();
 
+      const safeMockMatches = Array.isArray(mockMatches) ? mockMatches : [];
+
       const matchesData = await Promise.all(
-        mockMatches.map(async (mockMatch) => {
+        safeMockMatches.map(async (mockMatch) => {
           const host = await mockDataProvider.getUser(mockMatch.hostId);
           const matchPlayers = await mockDataProvider.getMatchPlayers(mockMatch.id);
 
@@ -161,7 +163,8 @@ export default function PlayScreen() {
     }
   };
 
-  const filteredMatches = matches.filter((match) => {
+  const safeMatches = Array.isArray(matches) ? matches : [];
+  const filteredMatches = safeMatches.filter((match) => {
     if (matchFilter === 'all') return true;
     return match.type === matchFilter;
   });
