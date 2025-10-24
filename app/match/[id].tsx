@@ -109,6 +109,13 @@ export default function MatchDetailsScreen() {
   const handleJoinMatch = async () => {
     if (!user || !match || typeof id !== 'string') return;
 
+    const isAlreadyJoined = match.players ? match.players.some((p) => p.id === user.id) : false;
+    
+    if (isAlreadyJoined) {
+      alert('You have already joined this match');
+      return;
+    }
+
     try {
       setIsJoining(true);
       await mockDataProvider.initialize();
@@ -116,7 +123,14 @@ export default function MatchDetailsScreen() {
       await loadMatch();
     } catch (error) {
       console.error('Error joining match:', error);
-      alert(error instanceof Error ? error.message : 'Failed to join match');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to join match';
+      
+      if (errorMessage.includes('Already in match')) {
+        alert('You have already joined this match. The page will refresh.');
+        await loadMatch();
+      } else {
+        alert(errorMessage);
+      }
     } finally {
       setIsJoining(false);
     }
