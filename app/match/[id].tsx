@@ -68,7 +68,7 @@ export default function MatchDetailsScreen() {
 
       const safeMatchPlayers = Array.isArray(matchPlayers) ? matchPlayers : [];
 
-      const safePlayers = Array.isArray(safeMatchPlayers) ? safeMatchPlayers.map(convertMockUserToPlayer) : [];
+      const safePlayers = safeMatchPlayers.map(convertMockUserToPlayer);
 
       const formattedMatch: Match = {
         id: mockMatch.id,

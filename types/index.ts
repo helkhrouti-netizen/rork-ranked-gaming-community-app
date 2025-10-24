@@ -160,3 +160,21 @@ export interface ChatMemberInfo {
   username: string;
   avatar?: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  chatRoomId: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  timestamp: Date;
+  isRead: boolean;
+}
+
+export interface ChatRoom {
+  id: string;
+  matchId?: string;
+  participantIds: string[];
+  messages: ChatMessage[];
+  createdAt: Date;
+}

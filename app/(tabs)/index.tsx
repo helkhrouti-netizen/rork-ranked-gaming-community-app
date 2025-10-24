@@ -61,20 +61,22 @@ export default function PlayScreen() {
             return null;
           }
 
+          const safeMatchPlayers = Array.isArray(matchPlayers) ? matchPlayers : [];
+
           const formattedMatch: Match = {
             id: mockMatch.id,
             type: mockMatch.type,
             status: mockMatch.status,
             host: convertMockUserToPlayer(host),
-            players: matchPlayers.map(convertMockUserToPlayer),
+            players: safeMatchPlayers.map(convertMockUserToPlayer),
             maxPlayers: mockMatch.maxPlayers,
             field: mockMatch.field,
             scheduledTime: mockMatch.scheduledTime,
             pointReward: mockMatch.pointReward,
             pointPenalty: mockMatch.pointPenalty,
             createdAt: mockMatch.createdAt,
-            playerPositions: mockMatch.playerPositions,
-            chatRoomId: mockMatch.chatRoomId,
+            playerPositions: Array.isArray(mockMatch.playerPositions) ? mockMatch.playerPositions : [],
+            chatRoomId: mockMatch.chatRoomId || '',
           };
 
           return formattedMatch;

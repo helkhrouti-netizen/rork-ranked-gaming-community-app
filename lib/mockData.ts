@@ -406,7 +406,7 @@ class MockDataProvider {
   async getMatchPlayers(matchId: string): Promise<MockUser[]> {
     if (!this.data) await this.initialize();
 
-    const playerEntries = this.data!.matchPlayers.filter((mp) => mp.matchId === matchId);
+    const playerEntries = this.data!.matchPlayers?.filter((mp) => mp.matchId === matchId) || [];
     const players: MockUser[] = [];
 
     for (const entry of playerEntries) {
