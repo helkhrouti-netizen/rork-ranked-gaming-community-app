@@ -352,7 +352,7 @@ function MatchCard({ match }: { match: Match }) {
           <View style={styles.matchDetailRow}>
             <Users color={Colors.colors.textSecondary} size={16} />
             <Text style={styles.matchDetailText}>
-              {match.players.length}/{match.maxPlayers} players
+              {(match.players || []).length}/{match.maxPlayers} players
             </Text>
           </View>
           <View style={styles.matchDetailRow}>

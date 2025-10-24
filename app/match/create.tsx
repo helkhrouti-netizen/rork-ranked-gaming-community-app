@@ -48,7 +48,7 @@ export default function CreateMatchScreen() {
     : RANK_INFO['Cuivre'];
   const rankColor = rankInfo?.color || '#CD7F32';
   const rankIcon = rankInfo?.icon || '🥉';
-  const availableFields = getFieldsByCity('CASABLANCA');
+  const availableFields = getFieldsByCity('CASABLANCA') || [];
 
   const currentRP = user?.level_score ?? 0;
   const pointReward = getRPChangeForMatch(matchType, 'win', currentRP);
@@ -343,7 +343,7 @@ export default function CreateMatchScreen() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Select Field / Club</Text>
               <Text style={styles.modalSubtitle}>Available in CASABLANCA</Text>
-              {availableFields.map((field) => (
+              {(availableFields || []).map((field) => (
                 <TouchableOpacity
                   key={field.id}
                   style={[

@@ -342,7 +342,7 @@ class MockDataProvider {
 
   async getAllMatches(): Promise<MockMatch[]> {
     if (!this.data) await this.initialize();
-    return this.data!.matches;
+    return this.data?.matches || [];
   }
 
   async joinMatch(matchId: string, userId: string, position?: CourtPosition): Promise<void> {
@@ -406,7 +406,11 @@ class MockDataProvider {
   async getMatchPlayers(matchId: string): Promise<MockUser[]> {
     if (!this.data) await this.initialize();
 
-    const playerEntries = this.data!.matchPlayers?.filter((mp) => mp.matchId === matchId) || [];
+    if (!this.data || !this.data.matchPlayers) {
+      return [];
+    }
+
+    const playerEntries = this.data.matchPlayers.filter((mp) => mp.matchId === matchId) || [];
     const players: MockUser[] = [];
 
     for (const entry of playerEntries) {
