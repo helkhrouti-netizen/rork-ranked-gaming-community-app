@@ -90,21 +90,21 @@ export default function MatchDetailsScreen() {
       setMatch(formattedMatch);
 
       try {
+        console.log('🔍 Fetching chat for match:', id);
         const dbChat = await chatService.getChatByMatchId(id);
         if (dbChat) {
-          console.log('✅ Found chat for match:', dbChat.id);
+          console.log('✅ Found chat UUID for match:', dbChat.id);
           setChatId(dbChat.id);
           formattedMatch.chatRoomId = dbChat.id;
           setMatch({ ...formattedMatch });
         } else {
-          console.log('⚠️ No chat found for match');
+          console.log('⚠️ No chat found for match, creating new one');
           try {
-            console.log('🔄 Creating chat for match:', id);
             const newChat = await chatService.createGroupChat({
               matchId: id,
               hostUserId: mockMatch.hostId,
             });
-            console.log('✅ Chat created:', newChat.id);
+            console.log('✅ Chat created with UUID:', newChat.id);
             setChatId(newChat.id);
             formattedMatch.chatRoomId = newChat.id;
             setMatch({ ...formattedMatch });
@@ -113,7 +113,7 @@ export default function MatchDetailsScreen() {
           }
         }
       } catch (chatError) {
-        console.error('⚠️ Error fetching chat for match:', chatError);
+        console.error('⚠️ Error fetching/creating chat:', chatError);
       }
     } catch (error) {
       console.error('Error loading match:', error);
@@ -356,31 +356,34 @@ export default function MatchDetailsScreen() {
             <TouchableOpacity
               style={styles.chatButton}
               onPress={async () => {
-                if (!chatId) {
-                  console.log('⚠️ No chat ID, attempting to create/fetch...');
-                  try {
-                    let finalChatId = '';
-                    const dbChat = await chatService.getChatByMatchId(id as string);
-                    if (dbChat) {
-                      finalChatId = dbChat.id;
-                      setChatId(dbChat.id);
-                    } else {
-                      const newChat = await chatService.createGroupChat({
-                        matchId: id as string,
-                        hostUserId: match.host.id,
-                      });
-                      finalChatId = newChat.id;
-                      setChatId(newChat.id);
-                    }
-                    console.log('🔗 Opening chat:', finalChatId);
-                    router.push(`/chat/${finalChatId}`);
-                  } catch (error) {
-                    console.error('❌ Failed to get/create chat:', error);
-                    alert('Failed to open chat');
+                if (!id || typeof id !== 'string') {
+                  console.error('❌ Invalid match ID');
+                  alert('Invalid match ID');
+                  return;
+                }
+
+                try {
+                  console.log('🔍 Looking up chat for match:', id);
+                  
+                  const dbChat = await chatService.getChatByMatchId(id);
+                  if (dbChat) {
+                    console.log('✅ Found chat UUID:', dbChat.id);
+                    setChatId(dbChat.id);
+                    router.push(`/chat/${dbChat.id}`);
+                  } else {
+                    console.log('⚠️ No chat exists, creating one');
+                    const newChat = await chatService.createGroupChat({
+                      matchId: id,
+                      hostUserId: match.host.id,
+                    });
+                    console.log('✅ Created chat UUID:', newChat.id);
+                    setChatId(newChat.id);
+                    router.push(`/chat/${newChat.id}`);
                   }
-                } else {
-                  console.log('🔗 Opening chat:', chatId);
-                  router.push(`/chat/${chatId}`);
+                } catch (error) {
+                  console.error('❌ Failed to open chat:', error);
+                  const errorMessage = error instanceof Error ? error.message : 'Failed to open chat';
+                  alert(errorMessage);
                 }
               }}
             >
