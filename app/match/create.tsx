@@ -91,12 +91,14 @@ export default function CreateMatchScreen() {
 
       console.log('✅ Match created successfully:', newMatch.id);
       
+      let actualChatId = '';
       try {
         const chat = await chatService.createGroupChat({
           matchId: newMatch.id,
           hostUserId: user.id,
         });
         console.log('✅ Chat room created:', chat.id);
+        actualChatId = chat.id;
         
         const mockMatch = await mockDataProvider.getMatch(newMatch.id);
         if (mockMatch) {

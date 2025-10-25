@@ -37,6 +37,7 @@ export default function MatchDetailsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
+  const [actualChatId, setActualChatId] = useState<string>('');
 
   useEffect(() => {
     if (!id || typeof id !== 'string') return;
@@ -87,6 +88,20 @@ export default function MatchDetailsScreen() {
       };
 
       setMatch(formattedMatch);
+
+      try {
+        const dbChat = await chatService.getChatByMatchId(id);
+        if (dbChat) {
+          console.log('✅ Found chat for match:', dbChat.id);
+          setActualChatId(dbChat.id);
+          formattedMatch.chatRoomId = dbChat.id;
+          setMatch({ ...formattedMatch });
+        } else {
+          console.log('⚠️ No chat found for match, will create one');
+        }
+      } catch (chatError) {
+        console.error('⚠️ Error fetching chat for match:', chatError);
+      }
     } catch (error) {
       console.error('Error loading match:', error);
     } finally {
@@ -121,9 +136,11 @@ export default function MatchDetailsScreen() {
       await mockDataProvider.initialize();
       await mockDataProvider.joinMatch(id, user.id);
       
-      if (match.chatRoomId) {
+      const chatIdToUse = actualChatId || match.chatRoomId;
+      if (chatIdToUse) {
         try {
-          await chatService.addChatMember(match.chatRoomId, user.id);
+          await chatService.addChatMember(chatIdToUse, user.id);
+          console.log('✅ Added user to chat:', chatIdToUse);
         } catch (chatError) {
           console.error('Failed to add user to chat:', chatError);
         }
@@ -153,9 +170,11 @@ export default function MatchDetailsScreen() {
       await mockDataProvider.initialize();
       await mockDataProvider.leaveMatch(id, user.id);
       
-      if (match.chatRoomId) {
+      const chatIdToUse = actualChatId || match.chatRoomId;
+      if (chatIdToUse) {
         try {
-          await chatService.removeChatMember(match.chatRoomId, user.id);
+          await chatService.removeChatMember(chatIdToUse, user.id);
+          console.log('✅ Removed user from chat:', chatIdToUse);
         } catch (chatError) {
           console.error('Failed to remove user from chat:', chatError);
         }
@@ -321,11 +340,15 @@ export default function MatchDetailsScreen() {
           </View>
         </View>
 
-        {match.chatRoomId && hasJoined && (
+        {(actualChatId || match.chatRoomId) && hasJoined && (
           <View style={styles.section}>
             <TouchableOpacity
               style={styles.chatButton}
-              onPress={() => router.push(`/chat/${match.chatRoomId}`)}
+              onPress={() => {
+                const chatIdToOpen = actualChatId || match.chatRoomId;
+                console.log('🔗 Opening chat:', chatIdToOpen);
+                router.push(`/chat/${chatIdToOpen}`);
+              }}
             >
               <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
               <Text style={styles.chatButtonText}>Open Match Chat</Text>
