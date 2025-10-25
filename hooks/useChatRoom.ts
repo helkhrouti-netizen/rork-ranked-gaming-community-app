@@ -24,6 +24,11 @@ export function useChatRoom({ chatId, enabled = true }: UseChatRoomParams) {
   
   const channelRef = useRef<RealtimeChannel | null>(null);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messagesRef = useRef<ChatMessageWithSender[]>([]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const loadMessages = useCallback(async () => {
     if (!chatId || !enabled) return;
@@ -143,19 +148,14 @@ export function useChatRoom({ chatId, enabled = true }: UseChatRoomParams) {
 
           const newMessage = payload.new as any;
 
-          const { data: sender } = await supabase.auth.getUser();
+          const { data: currentUser } = await supabase.auth.getUser();
           
           let senderUsername = 'Unknown';
-          if (newMessage.sender_id === sender?.user?.id) {
-            senderUsername = sender?.user?.user_metadata?.username || 'You';
+          if (newMessage.sender_id === currentUser?.user?.id) {
+            senderUsername = currentUser?.user?.user_metadata?.username || 'You';
           } else {
-            const { data: senderData } = await supabase
-              .from('profiles')
-              .select('username')
-              .eq('id', newMessage.sender_id)
-              .maybeSingle();
-            
-            senderUsername = senderData?.username || 'Unknown';
+            const existingMsg = messagesRef.current.find(m => m.sender_id === newMessage.sender_id);
+            senderUsername = existingMsg?.sender_username || 'Player';
           }
 
           const messageWithSender: ChatMessageWithSender = {
