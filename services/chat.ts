@@ -26,32 +26,44 @@ export const chatService = {
   async createGroupChat(params: CreateGroupChatParams): Promise<DBChat> {
     console.log('📝 Creating group chat for match:', params.matchId);
 
-    const { data: chat, error: chatError } = await supabase
-      .from('chats')
-      .insert({
-        match_id: params.matchId,
-        is_dm: false,
-      })
-      .select()
-      .single();
+    try {
+      const { data: chat, error: chatError } = await supabase
+        .from('chats')
+        .insert({
+          match_id: params.matchId,
+          is_dm: false,
+        })
+        .select()
+        .single();
 
-    if (chatError || !chat) {
-      console.error('❌ Failed to create chat:', chatError);
-      throw new Error(chatError?.message || 'Failed to create group chat');
+      if (chatError) {
+        console.error('❌ Chat insert error:', chatError);
+        throw new Error(chatError.message || 'Failed to create group chat');
+      }
+
+      if (!chat) {
+        throw new Error('Chat created but no data returned');
+      }
+
+      try {
+        const { error: memberError } = await supabase.from('chat_members').insert({
+          chat_id: chat.id,
+          user_id: params.hostUserId,
+        });
+
+        if (memberError) {
+          console.error('❌ Failed to add host to chat:', memberError);
+        }
+      } catch (memberErr) {
+        console.error('❌ Error adding host to chat:', memberErr);
+      }
+
+      console.log('✅ Group chat created:', chat.id);
+      return chat;
+    } catch (error: any) {
+      console.error('❌ Failed to create chat:', error);
+      throw error;
     }
-
-    const { error: memberError } = await supabase.from('chat_members').insert({
-      chat_id: chat.id,
-      user_id: params.hostUserId,
-    });
-
-    if (memberError) {
-      console.error('❌ Failed to add host to chat:', memberError);
-      throw new Error(memberError.message || 'Failed to add host to chat');
-    }
-
-    console.log('✅ Group chat created:', chat.id);
-    return chat;
   },
 
   async createOrGetDM(params: CreateDMParams): Promise<DBChat> {
@@ -97,17 +109,34 @@ export const chatService = {
   async addChatMember(chatId: string, userId: string): Promise<void> {
     console.log('➕ Adding user to chat:', { chatId, userId });
 
-    const { error } = await supabase.from('chat_members').insert({
-      chat_id: chatId,
-      user_id: userId,
-    });
+    try {
+      const { data: existing } = await supabase
+        .from('chat_members')
+        .select('user_id')
+        .eq('chat_id', chatId)
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error('❌ Failed to add chat member:', error);
-      throw new Error(error.message || 'Failed to add chat member');
+      if (existing) {
+        console.log('ℹ️ User already in chat');
+        return;
+      }
+
+      const { error } = await supabase.from('chat_members').insert({
+        chat_id: chatId,
+        user_id: userId,
+      });
+
+      if (error) {
+        console.error('❌ Failed to add chat member:', error);
+        throw new Error(error.message || 'Failed to add chat member');
+      }
+
+      console.log('✅ User added to chat');
+    } catch (error: any) {
+      console.error('❌ Error in addChatMember:', error);
+      throw error;
     }
-
-    console.log('✅ User added to chat');
   },
 
   async removeChatMember(chatId: string, userId: string): Promise<void> {

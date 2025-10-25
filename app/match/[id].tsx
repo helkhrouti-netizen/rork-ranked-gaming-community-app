@@ -108,12 +108,13 @@ export default function MatchDetailsScreen() {
             setChatId(newChat.id);
             formattedMatch.chatRoomId = newChat.id;
             setMatch({ ...formattedMatch });
-          } catch (createError) {
-            console.error('❌ Failed to create chat:', createError);
+          } catch (createError: any) {
+            console.error('❌ Failed to create chat:', createError?.message || createError);
+            alert(`Failed to create chat: ${createError?.message || 'Unknown error'}`);
           }
         }
-      } catch (chatError) {
-        console.error('⚠️ Error fetching/creating chat:', chatError);
+      } catch (chatError: any) {
+        console.error('⚠️ Error fetching/creating chat:', chatError?.message || chatError);
       }
     } catch (error) {
       console.error('Error loading match:', error);
@@ -140,35 +141,40 @@ export default function MatchDetailsScreen() {
     const isAlreadyJoined = match.players ? match.players.some((p) => p.id === user.id) : false;
     
     if (isAlreadyJoined) {
-      alert('You have already joined this match');
+      console.log('ℹ️ User already in match, refreshing...');
+      await loadMatch();
       return;
     }
 
     try {
       setIsJoining(true);
       await mockDataProvider.initialize();
-      await mockDataProvider.joinMatch(id, user.id);
+      
+      try {
+        await mockDataProvider.joinMatch(id, user.id);
+      } catch (joinError: any) {
+        if (joinError.message?.includes('Already in match')) {
+          console.log('ℹ️ Already in match (from provider), refreshing...');
+          await loadMatch();
+          return;
+        }
+        throw joinError;
+      }
       
       if (chatId) {
         try {
           await chatService.addChatMember(chatId, user.id);
           console.log('✅ Added user to chat:', chatId);
-        } catch (chatError) {
-          console.error('Failed to add user to chat:', chatError);
+        } catch (chatError: any) {
+          console.error('⚠️ Failed to add user to chat (non-critical):', chatError.message);
         }
       }
       
       await loadMatch();
     } catch (error) {
-      console.error('Error joining match:', error);
+      console.error('❌ Error joining match:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to join match';
-      
-      if (errorMessage.includes('Already in match')) {
-        alert('You have already joined this match. The page will refresh.');
-        await loadMatch();
-      } else {
-        alert(errorMessage);
-      }
+      alert(errorMessage);
     } finally {
       setIsJoining(false);
     }
@@ -372,17 +378,23 @@ export default function MatchDetailsScreen() {
                     router.push(`/chat/${dbChat.id}`);
                   } else {
                     console.log('⚠️ No chat exists, creating one');
-                    const newChat = await chatService.createGroupChat({
-                      matchId: id,
-                      hostUserId: match.host.id,
-                    });
-                    console.log('✅ Created chat UUID:', newChat.id);
-                    setChatId(newChat.id);
-                    router.push(`/chat/${newChat.id}`);
+                    try {
+                      const newChat = await chatService.createGroupChat({
+                        matchId: id,
+                        hostUserId: match.host.id,
+                      });
+                      console.log('✅ Created chat UUID:', newChat.id);
+                      setChatId(newChat.id);
+                      router.push(`/chat/${newChat.id}`);
+                    } catch (createError: any) {
+                      console.error('❌ Chat creation failed:', createError?.message || createError);
+                      alert(`Failed to create chat: ${createError?.message || 'Please try again'}`);
+                      return;
+                    }
                   }
-                } catch (error) {
+                } catch (error: any) {
                   console.error('❌ Failed to open chat:', error);
-                  const errorMessage = error instanceof Error ? error.message : 'Failed to open chat';
+                  const errorMessage = error?.message || 'Failed to open chat';
                   alert(errorMessage);
                 }
               }}
