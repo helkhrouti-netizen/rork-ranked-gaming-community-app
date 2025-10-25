@@ -17,12 +17,14 @@ import { ArrowLeft, Send, AlertCircle, Loader2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { ChatMessageWithSender } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const chatId = typeof id === 'string' ? id : null;
+  const { user } = useAuth();
 
   const [messageInput, setMessageInput] = useState<string>('');
   const flatListRef = useRef<FlatList>(null);
@@ -67,27 +69,34 @@ export default function ChatScreen() {
       );
     }
 
+    const isCurrentUser = user?.id === item.sender_id;
+
     return (
       <View style={[styles.messageContainer, !isFirstFromSender && styles.messageContainerCompact]}>
-        <View style={styles.messageRow}>
-          {isFirstFromSender ? (
-            <View style={styles.messageAvatar}>
-              <Text style={styles.messageAvatarText}>
-                {item.sender_username?.[0]?.toUpperCase() || '?'}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.messageAvatarPlaceholder} />
+        <View style={[styles.messageRow, isCurrentUser && styles.messageRowReverse]}>
+          {!isCurrentUser && (
+            isFirstFromSender ? (
+              <View style={styles.messageAvatar}>
+                <Text style={styles.messageAvatarText}>
+                  {item.sender_username?.[0]?.toUpperCase() || '?'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.messageAvatarPlaceholder} />
+            )
           )}
-          <View style={styles.messageContent}>
-            {isFirstFromSender && (
+          <View style={[styles.messageContent, isCurrentUser && styles.messageContentOwn]}>
+            {isFirstFromSender && !isCurrentUser && (
               <View style={styles.messageHeader}>
                 <Text style={styles.messageSender}>{item.sender_username || 'Unknown'}</Text>
                 <Text style={styles.messageTime}>{time}</Text>
               </View>
             )}
-            <View style={styles.messageBubble}>
-              <Text style={styles.messageBody}>{item.body}</Text>
+            <View style={[styles.messageBubble, isCurrentUser && styles.messageBubbleOwn]}>
+              <Text style={[styles.messageBody, isCurrentUser && styles.messageBodyOwn]}>{item.body}</Text>
+              {isCurrentUser && isFirstFromSender && (
+                <Text style={styles.messageTimeOwn}>{time}</Text>
+              )}
             </View>
           </View>
         </View>
@@ -303,6 +312,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  messageRowReverse: {
+    flexDirection: 'row-reverse',
+  },
   messageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -329,13 +341,24 @@ const styles = StyleSheet.create({
   messageContent: {
     flex: 1,
   },
+  messageContentOwn: {
+    alignItems: 'flex-end',
+  },
   messageBubble: {
     backgroundColor: Colors.colors.surfaceLight,
-    borderRadius: 16,
+    borderRadius: 18,
+    borderTopLeftRadius: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: Colors.colors.border,
+    maxWidth: '80%',
+  },
+  messageBubbleOwn: {
+    backgroundColor: Colors.colors.primary,
+    borderColor: Colors.colors.primary,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 4,
   },
   messageSender: {
     fontSize: 14,
@@ -350,6 +373,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.colors.textPrimary,
     lineHeight: 20,
+  },
+  messageBodyOwn: {
+    color: '#FFFFFF',
+  },
+  messageTimeOwn: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 4,
+    textAlign: 'right',
   },
   systemMessageContainer: {
     alignItems: 'center',
