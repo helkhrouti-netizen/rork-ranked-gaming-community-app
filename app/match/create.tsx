@@ -29,6 +29,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
 import { PadelCourtSelector } from '@/components/PadelCourtSelector';
+import { chatService } from '@/services/chat';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
@@ -89,6 +90,22 @@ export default function CreateMatchScreen() {
       });
 
       console.log('✅ Match created successfully:', newMatch.id);
+      
+      try {
+        const chat = await chatService.createGroupChat({
+          matchId: newMatch.id,
+          hostUserId: user.id,
+        });
+        console.log('✅ Chat room created:', chat.id);
+        
+        const mockMatch = await mockDataProvider.getMatch(newMatch.id);
+        if (mockMatch) {
+          mockMatch.chatRoomId = chat.id;
+          await mockDataProvider.initialize();
+        }
+      } catch (chatError) {
+        console.error('⚠️ Failed to create chat room:', chatError);
+      }
       
       if (router && typeof router.push === 'function') {
         router.push(`/match/${newMatch.id}`);

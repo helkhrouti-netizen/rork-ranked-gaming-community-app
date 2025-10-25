@@ -120,6 +120,15 @@ export default function MatchDetailsScreen() {
       setIsJoining(true);
       await mockDataProvider.initialize();
       await mockDataProvider.joinMatch(id, user.id);
+      
+      if (match.chatRoomId) {
+        try {
+          await chatService.addChatMember(match.chatRoomId, user.id);
+        } catch (chatError) {
+          console.error('Failed to add user to chat:', chatError);
+        }
+      }
+      
       await loadMatch();
     } catch (error) {
       console.error('Error joining match:', error);
@@ -143,6 +152,15 @@ export default function MatchDetailsScreen() {
       setIsLeaving(true);
       await mockDataProvider.initialize();
       await mockDataProvider.leaveMatch(id, user.id);
+      
+      if (match.chatRoomId) {
+        try {
+          await chatService.removeChatMember(match.chatRoomId, user.id);
+        } catch (chatError) {
+          console.error('Failed to remove user from chat:', chatError);
+        }
+      }
+      
       await loadMatch();
     } catch (error) {
       console.error('Error leaving match:', error);
@@ -260,17 +278,7 @@ export default function MatchDetailsScreen() {
           </View>
         </View>
 
-        {hasJoined && match.chatRoomId && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.chatButton}
-              onPress={() => router.push(`/chat/${match.chatRoomId}`)}
-            >
-              <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
-              <Text style={styles.chatButtonText}>Match Chat</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Match Information</Text>

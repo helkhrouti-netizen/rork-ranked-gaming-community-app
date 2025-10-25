@@ -300,11 +300,11 @@ class MockDataProvider {
   async createMatch(hostId: string, matchData: Partial<MockMatch> & { hostPosition?: CourtPosition }): Promise<MockMatch> {
     if (!this.data) await this.initialize();
 
-    const chatRoomId = `chat-${Date.now()}`;
     const hostPosition = matchData.hostPosition || 'top-left';
+    const matchId = `match-${Date.now()}`;
 
     const newMatch: MockMatch = {
-      id: `match-${Date.now()}`,
+      id: matchId,
       type: matchData.type || 'friendly',
       status: 'waiting',
       hostId,
@@ -315,20 +315,12 @@ class MockDataProvider {
       pointPenalty: matchData.pointPenalty || 15,
       createdAt: new Date(),
       playerPositions: [{ playerId: hostId, position: hostPosition }],
-      chatRoomId,
+      chatRoomId: '',
     };
 
     if (matchData.scheduledTime) {
       newMatch.scheduledTime = matchData.scheduledTime;
     }
-
-    const chatRoom: ChatRoom = {
-      id: chatRoomId,
-      matchId: newMatch.id,
-      participantIds: [hostId],
-      messages: [],
-      createdAt: new Date(),
-    };
 
     if (!Array.isArray(this.data!.matches)) {
       this.data!.matches = [];
@@ -342,7 +334,6 @@ class MockDataProvider {
 
     this.data!.matches.push(newMatch);
     this.data!.matchPlayers.push({ matchId: newMatch.id, userId: hostId });
-    this.data!.chatRooms.push(chatRoom);
     await this.save();
     return newMatch;
   }
@@ -393,11 +384,6 @@ class MockDataProvider {
     }
     this.data!.matchPlayers.push({ matchId, userId });
 
-    const chatRoom = this.data!.chatRooms.find((c) => c.id === match.chatRoomId);
-    if (chatRoom && !chatRoom.participantIds.includes(userId)) {
-      chatRoom.participantIds.push(userId);
-    }
-
     await this.save();
   }
 
@@ -423,11 +409,6 @@ class MockDataProvider {
       this.data!.matchPlayers = this.data!.matchPlayers.filter(
         (mp) => !(mp.matchId === matchId && mp.userId === userId)
       );
-    }
-
-    const chatRoom = this.data!.chatRooms.find((c) => c.id === match.chatRoomId);
-    if (chatRoom) {
-      chatRoom.participantIds = chatRoom.participantIds.filter((id) => id !== userId);
     }
 
     await this.save();
