@@ -18,7 +18,7 @@ import {
   Zap,
   Heart,
   Trophy,
-  MessageCircle,
+
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -26,7 +26,7 @@ import { formatRank, RANK_INFO } from '@/constants/ranks';
 import { Match, Player } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
-import { chatService } from '@/services/chat';
+
 
 export default function MatchDetailsScreen() {
   const insets = useSafeAreaInsets();
@@ -37,7 +37,7 @@ export default function MatchDetailsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
-  const [chatId, setChatId] = useState<string>('');
+
 
   useEffect(() => {
     if (!id || typeof id !== 'string') return;
@@ -89,33 +89,7 @@ export default function MatchDetailsScreen() {
 
       setMatch(formattedMatch);
 
-      try {
-        console.log('🔍 Fetching chat for match:', id);
-        const dbChat = await chatService.getChatByMatchId(id);
-        if (dbChat) {
-          console.log('✅ Found chat UUID for match:', dbChat.id);
-          setChatId(dbChat.id);
-          formattedMatch.chatRoomId = dbChat.id;
-          setMatch({ ...formattedMatch });
-        } else {
-          console.log('⚠️ No chat found for match, creating new one');
-          try {
-            const newChat = await chatService.createGroupChat({
-              matchId: id,
-              hostUserId: mockMatch.hostId,
-            });
-            console.log('✅ Chat created with UUID:', newChat.id);
-            setChatId(newChat.id);
-            formattedMatch.chatRoomId = newChat.id;
-            setMatch({ ...formattedMatch });
-          } catch (createError: any) {
-            console.error('❌ Failed to create chat:', createError?.message || createError);
-            alert(`Failed to create chat: ${createError?.message || 'Unknown error'}`);
-          }
-        }
-      } catch (chatError: any) {
-        console.error('⚠️ Error fetching/creating chat:', chatError?.message || chatError);
-      }
+
     } catch (error) {
       console.error('Error loading match:', error);
     } finally {
@@ -161,15 +135,7 @@ export default function MatchDetailsScreen() {
         throw joinError;
       }
       
-      if (chatId) {
-        try {
-          await chatService.addChatMember(chatId, user.id);
-          console.log('✅ Added user to chat:', chatId);
-        } catch (chatError: any) {
-          console.error('⚠️ Failed to add user to chat (non-critical):', chatError.message);
-        }
-      }
-      
+
       await loadMatch();
     } catch (error) {
       console.error('❌ Error joining match:', error);
@@ -188,15 +154,7 @@ export default function MatchDetailsScreen() {
       await mockDataProvider.initialize();
       await mockDataProvider.leaveMatch(id, user.id);
       
-      if (chatId) {
-        try {
-          await chatService.removeChatMember(chatId, user.id);
-          console.log('✅ Removed user from chat:', chatId);
-        } catch (chatError) {
-          console.error('Failed to remove user from chat:', chatError);
-        }
-      }
-      
+
       await loadMatch();
     } catch (error) {
       console.error('Error leaving match:', error);
@@ -293,24 +251,7 @@ export default function MatchDetailsScreen() {
                 </View>
               </View>
             </View>
-            <TouchableOpacity 
-              style={styles.messageButton}
-              onPress={async () => {
-                if (!user || !match.host.id) return;
-                try {
-                  const dmChat = await chatService.createOrGetDM({
-                    userId1: user.id,
-                    userId2: match.host.id,
-                  });
-                  router.push(`/chat/${dmChat.id}`);
-                } catch (error) {
-                  console.error('Failed to open DM:', error);
-                  alert('Failed to open chat');
-                }
-              }}
-            >
-              <MessageCircle color={Colors.colors.primary} size={20} strokeWidth={2.5} />
-            </TouchableOpacity>
+
           </View>
         </View>
 
@@ -356,54 +297,6 @@ export default function MatchDetailsScreen() {
             )}
           </View>
         </View>
-
-        {hasJoined && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.chatButton}
-              onPress={async () => {
-                if (!id || typeof id !== 'string') {
-                  console.error('❌ Invalid match ID');
-                  alert('Invalid match ID');
-                  return;
-                }
-
-                try {
-                  console.log('🔍 Looking up chat for match:', id);
-                  
-                  const dbChat = await chatService.getChatByMatchId(id);
-                  if (dbChat) {
-                    console.log('✅ Found chat UUID:', dbChat.id);
-                    setChatId(dbChat.id);
-                    router.push(`/chat/${dbChat.id}`);
-                  } else {
-                    console.log('⚠️ No chat exists, creating one');
-                    try {
-                      const newChat = await chatService.createGroupChat({
-                        matchId: id,
-                        hostUserId: match.host.id,
-                      });
-                      console.log('✅ Created chat UUID:', newChat.id);
-                      setChatId(newChat.id);
-                      router.push(`/chat/${newChat.id}`);
-                    } catch (createError: any) {
-                      console.error('❌ Chat creation failed:', createError?.message || createError);
-                      alert(`Failed to create chat: ${createError?.message || 'Please try again'}`);
-                      return;
-                    }
-                  }
-                } catch (error: any) {
-                  console.error('❌ Failed to open chat:', error);
-                  const errorMessage = error?.message || 'Failed to open chat';
-                  alert(errorMessage);
-                }
-              }}
-            >
-              <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
-              <Text style={styles.chatButtonText}>Open Match Chat</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
@@ -653,14 +546,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.colors.textSecondary,
   },
-  messageButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   infoCard: {
     backgroundColor: Colors.colors.surface,
     borderRadius: 16,
@@ -817,20 +703,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.colors.textSecondary,
   },
-  chatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.colors.primary,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.colors.border,
-  },
-  chatButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: Colors.colors.textPrimary,
-  },
+
 });
