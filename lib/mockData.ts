@@ -121,9 +121,20 @@ function getWinsLosses(rp: number): { wins: number; losses: number } {
   return { wins, losses };
 }
 
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+const DEFAULT_MATCH_1_ID = generateUUID();
+const DEFAULT_MATCH_2_ID = generateUUID();
+
 const DEFAULT_MOCK_MATCHES: MockMatch[] = [
   {
-    id: 'match-1',
+    id: DEFAULT_MATCH_1_ID,
     type: 'official',
     status: 'waiting',
     hostId: 'u-01',
@@ -137,10 +148,10 @@ const DEFAULT_MOCK_MATCHES: MockMatch[] = [
       { playerId: 'u-01', position: 'top-left' },
       { playerId: 'u-02', position: 'bottom-left' },
     ],
-    chatRoomId: 'chat-match-1',
+    chatRoomId: `chat-${DEFAULT_MATCH_1_ID}`,
   },
   {
-    id: 'match-2',
+    id: DEFAULT_MATCH_2_ID,
     type: 'friendly',
     status: 'waiting',
     hostId: 'u-03',
@@ -153,7 +164,7 @@ const DEFAULT_MOCK_MATCHES: MockMatch[] = [
     playerPositions: [
       { playerId: 'u-03', position: 'top-right' },
     ],
-    chatRoomId: 'chat-match-2',
+    chatRoomId: `chat-${DEFAULT_MATCH_2_ID}`,
   },
 ];
 
@@ -169,13 +180,13 @@ class MockDataProvider {
         users: DEFAULT_MOCK_USERS,
         matches: DEFAULT_MOCK_MATCHES,
         matchPlayers: [
-          { matchId: 'match-1', userId: 'u-01' },
-          { matchId: 'match-1', userId: 'u-02' },
-          { matchId: 'match-2', userId: 'u-03' },
+          { matchId: DEFAULT_MATCH_1_ID, userId: 'u-01' },
+          { matchId: DEFAULT_MATCH_1_ID, userId: 'u-02' },
+          { matchId: DEFAULT_MATCH_2_ID, userId: 'u-03' },
         ],
         chatRooms: [
-          { id: 'chat-match-1', matchId: 'match-1', participantIds: ['u-01', 'u-02'], messages: [], createdAt: new Date() },
-          { id: 'chat-match-2', matchId: 'match-2', participantIds: ['u-03'], messages: [], createdAt: new Date() },
+          { id: `chat-${DEFAULT_MATCH_1_ID}`, matchId: DEFAULT_MATCH_1_ID, participantIds: ['u-01', 'u-02'], messages: [], createdAt: new Date() },
+          { id: `chat-${DEFAULT_MATCH_2_ID}`, matchId: DEFAULT_MATCH_2_ID, participantIds: ['u-03'], messages: [], createdAt: new Date() },
         ],
         currentUserId: null,
       };
@@ -199,17 +210,31 @@ class MockDataProvider {
   }
 
   async reset(): Promise<void> {
+    const match1Id = generateUUID();
+    const match2Id = generateUUID();
+
     this.data = {
       users: DEFAULT_MOCK_USERS,
-      matches: DEFAULT_MOCK_MATCHES,
+      matches: [
+        {
+          ...DEFAULT_MOCK_MATCHES[0],
+          id: match1Id,
+          chatRoomId: `chat-${match1Id}`,
+        },
+        {
+          ...DEFAULT_MOCK_MATCHES[1],
+          id: match2Id,
+          chatRoomId: `chat-${match2Id}`,
+        },
+      ],
       matchPlayers: [
-        { matchId: 'match-1', userId: 'u-01' },
-        { matchId: 'match-1', userId: 'u-02' },
-        { matchId: 'match-2', userId: 'u-03' },
+        { matchId: match1Id, userId: 'u-01' },
+        { matchId: match1Id, userId: 'u-02' },
+        { matchId: match2Id, userId: 'u-03' },
       ],
       chatRooms: [
-        { id: 'chat-match-1', matchId: 'match-1', participantIds: ['u-01', 'u-02'], messages: [], createdAt: new Date() },
-        { id: 'chat-match-2', matchId: 'match-2', participantIds: ['u-03'], messages: [], createdAt: new Date() },
+        { id: `chat-${match1Id}`, matchId: match1Id, participantIds: ['u-01', 'u-02'], messages: [], createdAt: new Date() },
+        { id: `chat-${match2Id}`, matchId: match2Id, participantIds: ['u-03'], messages: [], createdAt: new Date() },
       ],
       currentUserId: null,
     };
@@ -301,7 +326,7 @@ class MockDataProvider {
     if (!this.data) await this.initialize();
 
     const hostPosition = matchData.hostPosition || 'top-left';
-    const matchId = `match-${Date.now()}`;
+    const matchId = generateUUID();
 
     const newMatch: MockMatch = {
       id: matchId,
