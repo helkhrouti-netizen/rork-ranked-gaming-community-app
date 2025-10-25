@@ -29,7 +29,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
 import { PadelCourtSelector } from '@/components/PadelCourtSelector';
-import { chatService } from '@/services/chat';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
@@ -90,21 +89,6 @@ export default function CreateMatchScreen() {
       });
 
       console.log('✅ Match created successfully:', newMatch.id);
-      
-      try {
-        const chat = await chatService.getChatByMatchId(newMatch.id);
-        if (chat) {
-          console.log('✅ Chat already exists for match:', chat.id);
-        } else {
-          const newChat = await chatService.createGroupChat({
-            matchId: newMatch.id,
-            hostUserId: user.id,
-          });
-          console.log('✅ Chat room created:', newChat.id);
-        }
-      } catch (chatError) {
-        console.error('⚠️ Chat error (non-critical):', chatError);
-      }
       
       if (router && typeof router.push === 'function') {
         router.push(`/match/${newMatch.id}`);
