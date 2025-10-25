@@ -37,7 +37,7 @@ export default function MatchDetailsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
-  const [actualChatId, setActualChatId] = useState<string>('');
+  const [chatId, setChatId] = useState<string>('');
 
   useEffect(() => {
     if (!id || typeof id !== 'string') return;
@@ -93,11 +93,24 @@ export default function MatchDetailsScreen() {
         const dbChat = await chatService.getChatByMatchId(id);
         if (dbChat) {
           console.log('✅ Found chat for match:', dbChat.id);
-          setActualChatId(dbChat.id);
+          setChatId(dbChat.id);
           formattedMatch.chatRoomId = dbChat.id;
           setMatch({ ...formattedMatch });
         } else {
-          console.log('⚠️ No chat found for match, will create one');
+          console.log('⚠️ No chat found for match');
+          try {
+            console.log('🔄 Creating chat for match:', id);
+            const newChat = await chatService.createGroupChat({
+              matchId: id,
+              hostUserId: mockMatch.hostId,
+            });
+            console.log('✅ Chat created:', newChat.id);
+            setChatId(newChat.id);
+            formattedMatch.chatRoomId = newChat.id;
+            setMatch({ ...formattedMatch });
+          } catch (createError) {
+            console.error('❌ Failed to create chat:', createError);
+          }
         }
       } catch (chatError) {
         console.error('⚠️ Error fetching chat for match:', chatError);
@@ -136,11 +149,10 @@ export default function MatchDetailsScreen() {
       await mockDataProvider.initialize();
       await mockDataProvider.joinMatch(id, user.id);
       
-      const chatIdToUse = actualChatId || match.chatRoomId;
-      if (chatIdToUse) {
+      if (chatId) {
         try {
-          await chatService.addChatMember(chatIdToUse, user.id);
-          console.log('✅ Added user to chat:', chatIdToUse);
+          await chatService.addChatMember(chatId, user.id);
+          console.log('✅ Added user to chat:', chatId);
         } catch (chatError) {
           console.error('Failed to add user to chat:', chatError);
         }
@@ -170,11 +182,10 @@ export default function MatchDetailsScreen() {
       await mockDataProvider.initialize();
       await mockDataProvider.leaveMatch(id, user.id);
       
-      const chatIdToUse = actualChatId || match.chatRoomId;
-      if (chatIdToUse) {
+      if (chatId) {
         try {
-          await chatService.removeChatMember(chatIdToUse, user.id);
-          console.log('✅ Removed user from chat:', chatIdToUse);
+          await chatService.removeChatMember(chatId, user.id);
+          console.log('✅ Removed user from chat:', chatId);
         } catch (chatError) {
           console.error('Failed to remove user from chat:', chatError);
         }
@@ -340,14 +351,13 @@ export default function MatchDetailsScreen() {
           </View>
         </View>
 
-        {(actualChatId || match.chatRoomId) && hasJoined && (
+        {chatId && hasJoined && (
           <View style={styles.section}>
             <TouchableOpacity
               style={styles.chatButton}
               onPress={() => {
-                const chatIdToOpen = actualChatId || match.chatRoomId;
-                console.log('🔗 Opening chat:', chatIdToOpen);
-                router.push(`/chat/${chatIdToOpen}`);
+                console.log('🔗 Opening chat:', chatId);
+                router.push(`/chat/${chatId}`);
               }}
             >
               <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />

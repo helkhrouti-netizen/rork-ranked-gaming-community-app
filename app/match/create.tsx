@@ -91,22 +91,19 @@ export default function CreateMatchScreen() {
 
       console.log('✅ Match created successfully:', newMatch.id);
       
-      let actualChatId = '';
       try {
-        const chat = await chatService.createGroupChat({
-          matchId: newMatch.id,
-          hostUserId: user.id,
-        });
-        console.log('✅ Chat room created:', chat.id);
-        actualChatId = chat.id;
-        
-        const mockMatch = await mockDataProvider.getMatch(newMatch.id);
-        if (mockMatch) {
-          mockMatch.chatRoomId = chat.id;
-          await mockDataProvider.initialize();
+        const chat = await chatService.getChatByMatchId(newMatch.id);
+        if (chat) {
+          console.log('✅ Chat already exists for match:', chat.id);
+        } else {
+          const newChat = await chatService.createGroupChat({
+            matchId: newMatch.id,
+            hostUserId: user.id,
+          });
+          console.log('✅ Chat room created:', newChat.id);
         }
       } catch (chatError) {
-        console.error('⚠️ Failed to create chat room:', chatError);
+        console.error('⚠️ Chat error (non-critical):', chatError);
       }
       
       if (router && typeof router.push === 'function') {
