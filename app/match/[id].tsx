@@ -321,6 +321,18 @@ export default function MatchDetailsScreen() {
           </View>
         </View>
 
+        {match.chatRoomId && hasJoined && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.chatButton}
+              onPress={() => router.push(`/chat/${match.chatRoomId}`)}
+            >
+              <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
+              <Text style={styles.chatButtonText}>Open Match Chat</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             Players ({match.players?.length || 0}/{match.maxPlayers})
