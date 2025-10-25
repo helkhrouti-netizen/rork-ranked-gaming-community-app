@@ -351,13 +351,37 @@ export default function MatchDetailsScreen() {
           </View>
         </View>
 
-        {chatId && hasJoined && (
+        {hasJoined && (
           <View style={styles.section}>
             <TouchableOpacity
               style={styles.chatButton}
-              onPress={() => {
-                console.log('🔗 Opening chat:', chatId);
-                router.push(`/chat/${chatId}`);
+              onPress={async () => {
+                if (!chatId) {
+                  console.log('⚠️ No chat ID, attempting to create/fetch...');
+                  try {
+                    let finalChatId = '';
+                    const dbChat = await chatService.getChatByMatchId(id as string);
+                    if (dbChat) {
+                      finalChatId = dbChat.id;
+                      setChatId(dbChat.id);
+                    } else {
+                      const newChat = await chatService.createGroupChat({
+                        matchId: id as string,
+                        hostUserId: match.host.id,
+                      });
+                      finalChatId = newChat.id;
+                      setChatId(newChat.id);
+                    }
+                    console.log('🔗 Opening chat:', finalChatId);
+                    router.push(`/chat/${finalChatId}`);
+                  } catch (error) {
+                    console.error('❌ Failed to get/create chat:', error);
+                    alert('Failed to open chat');
+                  }
+                } else {
+                  console.log('🔗 Opening chat:', chatId);
+                  router.push(`/chat/${chatId}`);
+                }
               }}
             >
               <MessageCircle color={Colors.colors.textPrimary} size={20} strokeWidth={2.5} />
