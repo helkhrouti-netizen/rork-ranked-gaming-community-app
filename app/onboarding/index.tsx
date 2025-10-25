@@ -23,6 +23,8 @@ import { CourtPosition } from '@/types';
 import Colors from '@/constants/colors';
 import { MOROCCO_CITIES } from '@/constants/cities';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getTranslation } from '@/constants/translations';
 
 interface OnboardingAnswer {
   questionIndex: number;
@@ -37,74 +39,56 @@ interface OnboardingState {
   answers: OnboardingAnswer[];
 }
 
-const QUESTION_OPTIONS = [
-  { text: 'Never', value: 1 },
-  { text: 'Rarely', value: 2 },
-  { text: 'Sometimes', value: 3 },
-  { text: 'Often', value: 4 },
-  { text: 'Always', value: 5 },
-];
-
-const QUESTIONS = [
+const getQuestions = (t: ReturnType<typeof getTranslation>) => [
   {
     id: 1,
-    text: 'How long have you been playing padel?',
+    key: 'tournaments' as const,
+    text: t.onboarding.questions.tournaments.title,
     weight: 10,
-    options: QUESTION_OPTIONS,
+    options: t.onboarding.questions.tournaments.options.map((text, index) => ({
+      text,
+      value: index + 1,
+    })),
   },
   {
     id: 2,
-    text: 'How often do you play each week?',
-    weight: 12,
-    options: QUESTION_OPTIONS,
+    key: 'windowUse' as const,
+    text: t.onboarding.questions.windowUse.title,
+    weight: 10,
+    options: t.onboarding.questions.windowUse.options.map((text, index) => ({
+      text,
+      value: index + 1,
+    })),
   },
   {
     id: 3,
-    text: 'When the ball hits the wall, how well can you play it back into the rally?',
-    weight: 8,
-    options: QUESTION_OPTIONS,
+    key: 'lobsAndSmashes' as const,
+    text: t.onboarding.questions.lobsAndSmashes.title,
+    weight: 10,
+    options: t.onboarding.questions.lobsAndSmashes.options.map((text, index) => ({
+      text,
+      value: index + 1,
+    })),
   },
   {
     id: 4,
-    text: 'Do you often play matches or tournaments?',
+    key: 'returnService' as const,
+    text: t.onboarding.questions.returnService.title,
     weight: 10,
-    options: QUESTION_OPTIONS,
+    options: t.onboarding.questions.returnService.options.map((text, index) => ({
+      text,
+      value: index + 1,
+    })),
   },
   {
     id: 5,
-    text: 'How consistent are your forehand and backhand shots?',
+    key: 'serviceAndRally' as const,
+    text: t.onboarding.questions.serviceAndRally.title,
     weight: 10,
-    options: QUESTION_OPTIONS,
-  },
-  {
-    id: 6,
-    text: 'How confident are you with your serves and returns?',
-    weight: 10,
-    options: QUESTION_OPTIONS,
-  },
-  {
-    id: 7,
-    text: 'How good are you at volleys and smashes near the net?',
-    weight: 10,
-    options: QUESTION_OPTIONS,
-  },
-  {
-    id: 8,
-    text: 'How well do you place the ball where you want (corners/open spaces)?',
-    weight: 8,
-    options: QUESTION_OPTIONS,
-  },
-  {
-    id: 9,
-    text: 'How well do you communicate and plan with your partner?',
-    weight: 12,
-    options: QUESTION_OPTIONS,
-  },
-  {
-    id: 10,
-    text: 'How long can you keep consistency and energy in a full match?',
-    weight: 10,
-    options: QUESTION_OPTIONS,
+    options: t.onboarding.questions.serviceAndRally.options.map((text, index) => ({
+      text,
+      value: index + 1,
+    })),
   },
 ];
 
@@ -132,6 +116,9 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { assessRanking } = useAuth();
+  const { language } = useLanguage();
+  const t = getTranslation(language);
+  const QUESTIONS = useMemo(() => getQuestions(t), [t]);
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [state, setState] = useState<OnboardingState>({
@@ -154,7 +141,7 @@ export default function OnboardingScreen() {
       return QUESTIONS[currentStep - 3];
     }
     return null;
-  }, [currentStep]);
+  }, [currentStep, QUESTIONS]);
 
   const currentAnswer = useMemo(() => {
     if (currentQuestion) {
@@ -333,7 +320,7 @@ export default function OnboardingScreen() {
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
         <Text style={styles.progressText}>
-          Step {currentStep + 1} of {totalSteps}
+          {t.onboarding.step} {currentStep + 1} {t.onboarding.of} {totalSteps}
         </Text>
       </View>
 
@@ -351,6 +338,7 @@ export default function OnboardingScreen() {
               avatarUri={state.avatarUri}
               username={state.username}
               errors={errors}
+              t={t}
               onUsernameChange={(text) => {
                 setState((prev) => ({ ...prev, username: text }));
                 setErrors((prev) => ({ ...prev, username: '' }));
@@ -366,6 +354,7 @@ export default function OnboardingScreen() {
               errors={errors}
               showSuggestions={showCitySuggestions}
               filteredCities={filteredCities}
+              t={t}
               onCityChange={(text) => {
                 setState((prev) => ({ ...prev, city: text }));
                 setErrors((prev) => ({ ...prev, city: '' }));
@@ -385,6 +374,7 @@ export default function OnboardingScreen() {
             <StepPreferredSide
               preferredSide={state.preferredSide}
               error={errors.preferredSide}
+              t={t}
               onSelectSide={(position) => {
                 setState((prev) => ({ ...prev, preferredSide: position }));
                 setErrors((prev) => ({ ...prev, preferredSide: '' }));
@@ -399,6 +389,7 @@ export default function OnboardingScreen() {
               totalQuestions={QUESTIONS.length}
               selectedValue={currentAnswer?.value}
               error={errors.question}
+              t={t}
               onSelect={handleAnswerSelect}
             />
           )}
@@ -409,6 +400,7 @@ export default function OnboardingScreen() {
               username={state.username}
               city={state.city}
               answers={state.answers}
+              t={t}
             />
           )}
         </ScrollView>
@@ -423,7 +415,7 @@ export default function OnboardingScreen() {
               testID="onboarding-back"
             >
               <ChevronLeft color={Colors.colors.primary} size={24} />
-              <Text style={styles.backButtonText}>Back</Text>
+              <Text style={styles.backButtonText}>{t.onboarding.back}</Text>
             </TouchableOpacity>
           )}
 
@@ -437,7 +429,7 @@ export default function OnboardingScreen() {
                 colors={[Colors.colors.primary, Colors.colors.primaryDark]}
                 style={styles.nextButtonGradient}
               >
-                <Text style={styles.nextButtonText}>Next</Text>
+                <Text style={styles.nextButtonText}>{t.onboarding.next}</Text>
                 <ChevronRight color={Colors.colors.textPrimary} size={24} />
               </LinearGradient>
             </TouchableOpacity>
@@ -455,7 +447,7 @@ export default function OnboardingScreen() {
                 {isLoading || isSubmitting ? (
                   <ActivityIndicator color={Colors.colors.textPrimary} />
                 ) : (
-                  <Text style={styles.nextButtonText}>Finish</Text>
+                  <Text style={styles.nextButtonText}>{t.onboarding.finish}</Text>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -470,6 +462,7 @@ function StepAvatarUsername({
   avatarUri,
   username,
   errors,
+  t,
   onUsernameChange,
   onPickImage,
   onTakePhoto,
@@ -477,14 +470,15 @@ function StepAvatarUsername({
   avatarUri: string;
   username: string;
   errors: Record<string, string>;
+  t: ReturnType<typeof getTranslation>;
   onUsernameChange: (text: string) => void;
   onPickImage: () => void;
   onTakePhoto: () => void;
 }) {
   return (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Set Up Your Profile</Text>
-      <Text style={styles.stepSubtitle}>Choose an avatar and create your username</Text>
+      <Text style={styles.stepTitle}>{t.onboarding.setupProfile}</Text>
+      <Text style={styles.stepSubtitle}>{t.onboarding.avatarUsername}</Text>
 
       <View style={styles.avatarSection}>
         <TouchableOpacity
@@ -505,22 +499,22 @@ function StepAvatarUsername({
         <View style={styles.avatarButtons}>
           <TouchableOpacity style={styles.avatarButton} onPress={onPickImage}>
             <Camera color={Colors.colors.primary} size={20} />
-            <Text style={styles.avatarButtonText}>Gallery</Text>
+            <Text style={styles.avatarButtonText}>{t.onboarding.gallery}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.avatarButton} onPress={onTakePhoto}>
             <Camera color={Colors.colors.primary} size={20} />
-            <Text style={styles.avatarButtonText}>Camera</Text>
+            <Text style={styles.avatarButtonText}>{t.onboarding.camera}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.inputSection}>
-        <Text style={styles.inputLabel}>Username</Text>
+        <Text style={styles.inputLabel}>{t.auth.username}</Text>
         <TextInput
           style={[styles.textInput, errors.username && styles.textInputError]}
           value={username}
           onChangeText={onUsernameChange}
-          placeholder="Enter your username"
+          placeholder={t.auth.usernamePlaceholder}
           placeholderTextColor={Colors.colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
@@ -528,7 +522,7 @@ function StepAvatarUsername({
           testID="username-input"
         />
         {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
-        <Text style={styles.inputHint}>3-24 characters, letters, numbers, and underscores only</Text>
+        <Text style={styles.inputHint}>{t.onboarding.usernameHint}</Text>
       </View>
     </View>
   );
@@ -539,6 +533,7 @@ function StepCity({
   errors,
   showSuggestions,
   filteredCities,
+  t,
   onCityChange,
   onCitySelect,
   onFocus,
@@ -548,6 +543,7 @@ function StepCity({
   errors: Record<string, string>;
   showSuggestions: boolean;
   filteredCities: string[];
+  t: ReturnType<typeof getTranslation>;
   onCityChange: (text: string) => void;
   onCitySelect: (city: string) => void;
   onFocus: () => void;
@@ -555,8 +551,8 @@ function StepCity({
 }) {
   return (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Where do you play?</Text>
-      <Text style={styles.stepSubtitle}>Select your city or enter a custom location</Text>
+      <Text style={styles.stepTitle}>{t.onboarding.wherePlay}</Text>
+      <Text style={styles.stepSubtitle}>{t.onboarding.citySubtitle}</Text>
 
       <View style={styles.inputSection}>
         <View style={styles.cityInputContainer}>
@@ -567,7 +563,7 @@ function StepCity({
             onChangeText={onCityChange}
             onFocus={onFocus}
             onBlur={onBlur}
-            placeholder="Enter your city"
+            placeholder={t.onboarding.cityPlaceholder}
             placeholderTextColor={Colors.colors.textMuted}
             maxLength={48}
             testID="city-input"
@@ -599,19 +595,21 @@ function StepQuestion({
   totalQuestions,
   selectedValue,
   error,
+  t,
   onSelect,
 }: {
-  question: typeof QUESTIONS[0];
+  question: { id: number; key: string; text: string; weight: number; options: { text: string; value: number }[] };
   questionNumber: number;
   totalQuestions: number;
   selectedValue: number | undefined;
   error: string | undefined;
+  t: ReturnType<typeof getTranslation>;
   onSelect: (value: number) => void;
 }) {
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.questionNumber}>
-        Question {questionNumber} of {totalQuestions}
+        {t.onboarding.questionNumber} {questionNumber} {t.onboarding.of} {totalQuestions}
       </Text>
       <Text style={styles.stepTitle}>{question.text}</Text>
 
@@ -650,17 +648,19 @@ function StepQuestion({
 function StepPreferredSide({
   preferredSide,
   error,
+  t,
   onSelectSide,
 }: {
   preferredSide: CourtPosition | null;
   error: string | undefined;
+  t: ReturnType<typeof getTranslation>;
   onSelectSide: (position: CourtPosition) => void;
 }) {
   return (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Which side do you prefer?</Text>
+      <Text style={styles.stepTitle}>{t.onboarding.whichSide}</Text>
       <Text style={styles.stepSubtitle}>
-        Select your preferred position on the padel court
+        {t.onboarding.sideSubtitle}
       </Text>
 
       <View style={styles.courtSelectorContainer}>
@@ -681,11 +681,13 @@ function StepResult({
   username,
   city,
   answers,
+  t,
 }: {
   avatarUri: string;
   username: string;
   city: string;
   answers: OnboardingAnswer[];
+  t: ReturnType<typeof getTranslation>;
 }) {
   const totalScore = answers.reduce((sum, a) => sum + a.value, 0);
   const score100 = ((totalScore - 10) * 100) / 40;
@@ -700,8 +702,8 @@ function StepResult({
 
   return (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Welcome to Padel League!</Text>
-      <Text style={styles.stepSubtitle}>Your profile is ready</Text>
+      <Text style={styles.stepTitle}>{t.onboarding.welcomeResult}</Text>
+      <Text style={styles.stepSubtitle}>{t.onboarding.profileReady}</Text>
 
       <View style={styles.resultCard}>
         {avatarUri && (
@@ -715,13 +717,13 @@ function StepResult({
       </View>
 
       <View style={styles.rankCard}>
-        <Text style={styles.rankCardTitle}>Your Starting Rank</Text>
+        <Text style={styles.rankCardTitle}>{t.onboarding.startingRank}</Text>
         <Text style={styles.rankEmoji}>{rankEmoji}</Text>
         <Text style={styles.rankText}>
           {rankMapping.tier} {rankMapping.sub}
         </Text>
         <Text style={styles.rankDescription}>
-          Based on your skill assessment, you&apos;re starting in {rankMapping.tier} tier. Play matches to climb the ranks!
+          {t.onboarding.rankDescription} {rankMapping.tier} {t.onboarding.rankDescriptionEnd}
         </Text>
       </View>
     </View>

@@ -24,6 +24,8 @@ import {
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getTranslation } from '@/constants/translations';
 import { MOROCCO_CITIES, CITY_INFO, MoroccoCity } from '@/constants/cities';
 import { profileService } from '@/services/profile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,7 +34,10 @@ import { mockDataProvider } from '@/lib/mockData';
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
+  const t = getTranslation(language);
   const [changeCityModalVisible, setChangeCityModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [policiesModalVisible, setPoliciesModalVisible] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
@@ -145,7 +150,7 @@ export default function SettingsScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Settings',
+          title: t.settings.title,
           headerStyle: {
             backgroundColor: Colors.colors.surface,
           },
@@ -162,7 +167,7 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Profile</Text>
+            <Text style={styles.sectionTitle}>{t.settings.profile}</Text>
             
             <TouchableOpacity
               style={styles.settingsItem}
@@ -172,7 +177,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: Colors.colors.primary + '20' }]}>
                   <Camera color={Colors.colors.primary} size={20} />
                 </View>
-                <Text style={styles.settingsItemText}>Change Profile Picture</Text>
+                <Text style={styles.settingsItemText}>{t.settings.changeProfilePicture}</Text>
               </View>
               <ChevronRight color={Colors.colors.textMuted} size={20} />
             </TouchableOpacity>
@@ -186,9 +191,27 @@ export default function SettingsScreen() {
                   <MapPin color={Colors.colors.accent} size={20} />
                 </View>
                 <View style={styles.settingsItemContent}>
-                  <Text style={styles.settingsItemText}>City</Text>
+                  <Text style={styles.settingsItemText}>{t.settings.city}</Text>
                   <Text style={styles.settingsItemSubtext}>
                     {cityInfo.emoji} {cityInfo.name}
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color={Colors.colors.textMuted} size={20} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsItem}
+              onPress={() => setLanguageModalVisible(true)}
+            >
+              <View style={styles.settingsItemLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: Colors.colors.success + '20' }]}>
+                  <MapPin color={Colors.colors.success} size={20} />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemText}>{t.settings.language}</Text>
+                  <Text style={styles.settingsItemSubtext}>
+                    {language === 'fr' ? t.settings.french : t.settings.english}
                   </Text>
                 </View>
               </View>
@@ -198,7 +221,7 @@ export default function SettingsScreen() {
 
           {__DEV__ && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Developer</Text>
+              <Text style={styles.sectionTitle}>{t.settings.developer}</Text>
               
               <TouchableOpacity
                 style={styles.settingsItem}
@@ -211,10 +234,10 @@ export default function SettingsScreen() {
                   </View>
                   <View style={styles.settingsItemContent}>
                     <Text style={styles.settingsItemText}>
-                      {isClearing ? 'Clearing...' : '🗑️ Clear All Cache & Data'}
+                      {isClearing ? 'Clearing...' : t.settings.clearCache}
                     </Text>
                     <Text style={styles.settingsItemSubtext}>
-                      Nuclear option: Clears AsyncStorage
+                      {t.settings.clearCacheSubtitle}
                     </Text>
                   </View>
                 </View>
@@ -257,7 +280,7 @@ export default function SettingsScreen() {
                   <View style={[styles.iconContainer, { backgroundColor: Colors.colors.accent + '20' }]}>
                     <RefreshCw color={Colors.colors.accent} size={20} />
                   </View>
-                  <Text style={styles.settingsItemText}>Re-run Onboarding</Text>
+                  <Text style={styles.settingsItemText}>{t.settings.rerunOnboarding}</Text>
                 </View>
                 <ChevronRight color={Colors.colors.textMuted} size={20} />
               </TouchableOpacity>
@@ -265,7 +288,7 @@ export default function SettingsScreen() {
           )}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Legal</Text>
+            <Text style={styles.sectionTitle}>{t.settings.legal}</Text>
             
             <TouchableOpacity
               style={styles.settingsItem}
@@ -275,7 +298,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: Colors.colors.warning + '20' }]}>
                   <FileText color={Colors.colors.warning} size={20} />
                 </View>
-                <Text style={styles.settingsItemText}>Policies & Terms</Text>
+                <Text style={styles.settingsItemText}>{t.settings.policies}</Text>
               </View>
               <ChevronRight color={Colors.colors.textMuted} size={20} />
             </TouchableOpacity>
@@ -291,7 +314,7 @@ export default function SettingsScreen() {
                   <LogOut color={Colors.colors.danger} size={20} />
                 </View>
                 <Text style={[styles.settingsItemText, styles.logoutText]}>
-                  Logout
+                  {t.settings.logout}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -307,7 +330,7 @@ export default function SettingsScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select City</Text>
+                <Text style={styles.modalTitle}>{t.settings.selectCity}</Text>
                 <TouchableOpacity
                   onPress={() => setChangeCityModalVisible(false)}
                   style={styles.modalCloseButton}
@@ -347,6 +370,79 @@ export default function SettingsScreen() {
                   );
                 })}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={languageModalVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setLanguageModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{t.settings.selectLanguage}</Text>
+                <TouchableOpacity
+                  onPress={() => setLanguageModalVisible(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <X color={Colors.colors.textSecondary} size={24} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalScroll}>
+                <TouchableOpacity
+                  style={[
+                    styles.cityOption,
+                    language === 'fr' && styles.cityOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setLanguage('fr');
+                    setLanguageModalVisible(false);
+                    Alert.alert(t.settings.success, t.settings.cityUpdated);
+                  }}
+                >
+                  <View style={styles.cityOptionLeft}>
+                    <Text style={styles.cityEmoji}>🇫🇷</Text>
+                    <Text style={[
+                      styles.cityName,
+                      language === 'fr' && styles.cityNameSelected,
+                    ]}>
+                      {t.settings.french}
+                    </Text>
+                  </View>
+                  {language === 'fr' && (
+                    <Check color={Colors.colors.primary} size={24} strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.cityOption,
+                    language === 'en' && styles.cityOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setLanguage('en');
+                    setLanguageModalVisible(false);
+                    Alert.alert(t.settings.success, t.settings.cityUpdated);
+                  }}
+                >
+                  <View style={styles.cityOptionLeft}>
+                    <Text style={styles.cityEmoji}>🇬🇧</Text>
+                    <Text style={[
+                      styles.cityName,
+                      language === 'en' && styles.cityNameSelected,
+                    ]}>
+                      {t.settings.english}
+                    </Text>
+                  </View>
+                  {language === 'en' && (
+                    <Check color={Colors.colors.primary} size={24} strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>

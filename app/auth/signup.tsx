@@ -16,11 +16,16 @@ import { Mail, User, Lock, Phone } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getTranslation } from '@/constants/translations';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signup } = useAuth();
+  const { language } = useLanguage();
+  const t = getTranslation(language);
 
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -100,9 +105,10 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
+            <LanguageSwitcher />
             <Text style={styles.emoji}>🎾</Text>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Sign up to start playing</Text>
+            <Text style={styles.title}>{t.auth.createAccount}</Text>
+            <Text style={styles.subtitle}>{t.auth.signupSubtitle}</Text>
           </View>
 
           <View style={styles.form}>
@@ -111,12 +117,12 @@ export default function SignupScreen() {
                 <User color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Username</Text>
+                <Text style={styles.inputLabel}>{t.auth.username}</Text>
                 <TextInput
                   style={styles.input}
                   value={username}
                   onChangeText={setUsername}
-                  placeholder="Choose a username"
+                  placeholder={t.auth.usernamePlaceholder}
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -130,12 +136,12 @@ export default function SignupScreen() {
                 <Mail color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Email Address</Text>
+                <Text style={styles.inputLabel}>{t.auth.email}</Text>
                 <TextInput
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="example@email.com"
+                  placeholder={t.auth.emailPlaceholder}
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -150,7 +156,7 @@ export default function SignupScreen() {
                 <Phone color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
+                <Text style={styles.inputLabel}>{t.auth.phoneNumber}</Text>
                 <TextInput
                   style={styles.input}
                   value={phoneNumber}
@@ -167,12 +173,12 @@ export default function SignupScreen() {
                 <Lock color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Password</Text>
+                <Text style={styles.inputLabel}>{t.auth.password}</Text>
                 <TextInput
                   style={styles.input}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="At least 6 characters"
+                  placeholder={t.auth.passwordPlaceholder}
                   placeholderTextColor={Colors.colors.textMuted}
                   secureTextEntry
                   autoCapitalize="none"
@@ -187,12 +193,12 @@ export default function SignupScreen() {
                 <Lock color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Confirm Password</Text>
+                <Text style={styles.inputLabel}>{t.auth.confirmPassword}</Text>
                 <TextInput
                   style={styles.input}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  placeholder="Re-enter your password"
+                  placeholder={t.auth.confirmPasswordPlaceholder}
                   placeholderTextColor={Colors.colors.textMuted}
                   secureTextEntry
                   autoCapitalize="none"
@@ -235,14 +241,14 @@ export default function SignupScreen() {
                       styles.signupButtonTextDisabled,
                   ]}
                 >
-                  {isLoading ? 'Creating Account...' : 'Sign Up'}
+                  {isLoading ? t.auth.creatingAccount : t.auth.signup}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
+              <Text style={styles.dividerText}>{t.auth.or}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -252,8 +258,8 @@ export default function SignupScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.loginButtonText}>
-                Already have an account?{' '}
-                <Text style={styles.loginButtonTextBold}>Log In</Text>
+                {t.auth.alreadyHaveAccount}{' '}
+                <Text style={styles.loginButtonTextBold}>{t.auth.login}</Text>
               </Text>
             </TouchableOpacity>
           </View>

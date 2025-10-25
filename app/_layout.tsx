@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import Colors from "@/constants/colors";
 import { trpc } from "@/lib/trpc";
 import { httpBatchLink } from "@trpc/client";
@@ -103,13 +104,15 @@ export default function RootLayout() {
   return (
     <trpc.Provider client={trpcReactClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <GestureHandlerRootView style={styles.container}>
-            <ErrorBoundary>
-              <RootLayoutNav />
-            </ErrorBoundary>
-          </GestureHandlerRootView>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <GestureHandlerRootView style={styles.container}>
+              <ErrorBoundary>
+                <RootLayoutNav />
+              </ErrorBoundary>
+            </GestureHandlerRootView>
+          </AuthProvider>
+        </LanguageProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

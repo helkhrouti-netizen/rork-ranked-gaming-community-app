@@ -16,11 +16,16 @@ import { Mail, Lock } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getTranslation } from '@/constants/translations';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { login } = useAuth();
+  const { language } = useLanguage();
+  const t = getTranslation(language);
 
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -76,9 +81,10 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
+            <LanguageSwitcher />
             <Text style={styles.emoji}>🎾</Text>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Log in to continue playing</Text>
+            <Text style={styles.title}>{t.auth.welcomeBack}</Text>
+            <Text style={styles.subtitle}>{t.auth.loginSubtitle}</Text>
           </View>
 
           <View style={styles.form}>
@@ -87,12 +93,12 @@ export default function LoginScreen() {
                 <Mail color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Email Address</Text>
+                <Text style={styles.inputLabel}>{t.auth.email}</Text>
                 <TextInput
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="example@email.com"
+                  placeholder={t.auth.emailPlaceholder}
                   placeholderTextColor={Colors.colors.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -107,12 +113,12 @@ export default function LoginScreen() {
                 <Lock color={Colors.colors.primary} size={20} strokeWidth={2.5} />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Password</Text>
+                <Text style={styles.inputLabel}>{t.auth.password}</Text>
                 <TextInput
                   style={styles.input}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Enter your password"
+                  placeholder={t.auth.passwordPlaceholder}
                   placeholderTextColor={Colors.colors.textMuted}
                   secureTextEntry
                   autoCapitalize="none"
@@ -156,14 +162,14 @@ export default function LoginScreen() {
                       styles.loginButtonTextDisabled,
                   ]}
                 >
-                  {isLoading ? 'Logging in...' : 'Log In'}
+                  {isLoading ? t.auth.loggingIn : t.auth.login}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
+              <Text style={styles.dividerText}>{t.auth.or}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -174,8 +180,8 @@ export default function LoginScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.signupButtonText}>
-                Don&apos;t have an account?{' '}
-                <Text style={styles.signupButtonTextBold}>Sign Up</Text>
+                {t.auth.dontHaveAccount}{' '}
+                <Text style={styles.signupButtonTextBold}>{t.auth.signup}</Text>
               </Text>
             </TouchableOpacity>
           </View>
