@@ -26,11 +26,15 @@ import { RANK_INFO, formatRank } from '@/constants/ranks';
 import { Match, Player } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getTranslation } from '@/constants/translations';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, isLoading: profileLoading } = useAuth();
+  const { language } = useLanguage();
+  const t = getTranslation(language);
   const [matchFilter, setMatchFilter] = useState<'all' | 'official' | 'friendly'>('all');
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState<boolean>(true);
@@ -174,9 +178,9 @@ export default function PlayScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.greeting}>Ready to compete</Text>
+            <Text style={styles.greeting}>{t.home.readyToCompete}</Text>
             <Text style={styles.username}>
-              {profileLoading ? 'Loading...' : user?.username || 'Guest'}
+              {profileLoading ? t.home.loading : user?.username || t.home.guest}
             </Text>
           </View>
           {user && (
@@ -219,9 +223,9 @@ export default function PlayScreen() {
               ) : (
                 <Zap color={Colors.colors.textPrimary} size={28} strokeWidth={2.5} />
               )}
-              <Text style={styles.primaryActionText}>Quick Match</Text>
+              <Text style={styles.primaryActionText}>{t.home.quickMatch}</Text>
               <Text style={styles.primaryActionSubtext}>
-                {isQuickMatchLoading ? 'Finding match...' : 'Find match instantly'}
+                {isQuickMatchLoading ? t.home.findingMatch : t.home.findMatchInstantly}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -232,13 +236,13 @@ export default function PlayScreen() {
           >
             <View style={styles.secondaryActionContent}>
               <Plus color={Colors.colors.primary} size={24} strokeWidth={2.5} />
-              <Text style={styles.secondaryActionText}>Create Match</Text>
+              <Text style={styles.secondaryActionText}>{t.home.createMatch}</Text>
             </View>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Matches</Text>
+          <Text style={styles.sectionTitle}>{t.home.availableMatches}</Text>
           
           <View style={styles.filterRow}>
             <TouchableOpacity
@@ -246,7 +250,7 @@ export default function PlayScreen() {
               onPress={() => setMatchFilter('all')}
             >
               <Text style={[styles.filterChipText, matchFilter === 'all' && styles.filterChipTextActive]}>
-                All
+                {t.home.all}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -254,7 +258,7 @@ export default function PlayScreen() {
               onPress={() => setMatchFilter('official')}
             >
               <Text style={[styles.filterChipText, matchFilter === 'official' && styles.filterChipTextActive]}>
-                Official
+                {t.home.official}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -262,7 +266,7 @@ export default function PlayScreen() {
               onPress={() => setMatchFilter('friendly')}
             >
               <Text style={[styles.filterChipText, matchFilter === 'friendly' && styles.filterChipTextActive]}>
-                Friendly
+                {t.home.friendly}
               </Text>
             </TouchableOpacity>
           </View>
@@ -270,12 +274,12 @@ export default function PlayScreen() {
           {isLoadingMatches ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={Colors.colors.primary} size="large" />
-              <Text style={styles.loadingText}>Loading matches...</Text>
+              <Text style={styles.loadingText}>{t.home.loadingMatches}</Text>
             </View>
           ) : errorMessage ? (
             <View style={styles.errorContainer}>
               <AlertCircle color={Colors.colors.error} size={48} />
-              <Text style={styles.errorText}>Failed to load matches</Text>
+              <Text style={styles.errorText}>{t.home.failedToLoad}</Text>
               <Text style={styles.errorSubtext}>{errorMessage}</Text>
             </View>
           ) : (
@@ -286,8 +290,8 @@ export default function PlayScreen() {
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No matches available</Text>
-                  <Text style={styles.emptyStateSubtext}>Create a new match or try quick match</Text>
+                  <Text style={styles.emptyStateText}>{t.home.noMatchesAvailable}</Text>
+                  <Text style={styles.emptyStateSubtext}>{t.home.noMatchesSubtext}</Text>
                 </View>
               )}
             </View>
