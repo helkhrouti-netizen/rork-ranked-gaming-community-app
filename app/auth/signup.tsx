@@ -53,6 +53,17 @@ export default function SignupScreen() {
       return;
     }
 
+    if (!phoneNumber.trim()) {
+      setError('Please enter your phone number');
+      return;
+    }
+
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/[\s-]/g, ''))) {
+      setError('Please enter a valid phone number (e.g., +212 6XX XXX XXX)');
+      return;
+    }
+
     if (!password.trim()) {
       setError('Please enter a password');
       return;
@@ -73,7 +84,8 @@ export default function SignupScreen() {
       await signup(
         email.trim().toLowerCase(),
         password.trim(),
-        username.trim()
+        username.trim(),
+        phoneNumber.trim()
       );
 
       console.log('✅ Sign up successful, profile created in database');
@@ -164,6 +176,7 @@ export default function SignupScreen() {
                   placeholder="+212 6XX XXX XXX"
                   placeholderTextColor={Colors.colors.textMuted}
                   keyboardType="phone-pad"
+                  testID="signup-phone-input"
                 />
               </View>
             </View>
@@ -216,17 +229,17 @@ export default function SignupScreen() {
             <TouchableOpacity
               style={[
                 styles.signupButton,
-                (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading) &&
+                (!username.trim() || !email.trim() || !phoneNumber.trim() || !password.trim() || !confirmPassword.trim() || isLoading) &&
                   styles.signupButtonDisabled,
               ]}
               onPress={handleSignup}
-              disabled={!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading}
+              disabled={!username.trim() || !email.trim() || !phoneNumber.trim() || !password.trim() || !confirmPassword.trim() || isLoading}
               activeOpacity={0.8}
               testID="signup-submit-button"
             >
               <LinearGradient
                 colors={
-                  !username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading
+                  !username.trim() || !email.trim() || !phoneNumber.trim() || !password.trim() || !confirmPassword.trim() || isLoading
                     ? [Colors.colors.surfaceLight, Colors.colors.surfaceLight]
                     : [Colors.colors.primary, Colors.colors.primaryDark]
                 }
@@ -237,7 +250,7 @@ export default function SignupScreen() {
                 <Text
                   style={[
                     styles.signupButtonText,
-                    (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || isLoading) &&
+                    (!username.trim() || !email.trim() || !phoneNumber.trim() || !password.trim() || !confirmPassword.trim() || isLoading) &&
                       styles.signupButtonTextDisabled,
                   ]}
                 >
