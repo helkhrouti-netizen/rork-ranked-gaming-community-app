@@ -63,6 +63,16 @@ export interface MatchHistory {
   date: Date;
 }
 
+export interface PlayerMatchHistory {
+  id: string;
+  player_id: string;
+  match_id: string;
+  rp_change: number;
+  outcome: 'win' | 'loss' | 'draw';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PlayerRating {
   id: string;
   matchId: string;

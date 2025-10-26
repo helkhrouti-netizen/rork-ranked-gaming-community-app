@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { translations } from '@/constants/translations';
 
 export type Language = 'fr' | 'en';
 
@@ -36,9 +37,23 @@ export const [LanguageProvider, useLanguage] = createContextHook(() => {
     }
   }, []);
 
+  const t = useCallback((key: string) => {
+    const keys = key.split('.');
+    let value: any = translations[language];
+    for (const k of keys) {
+      if (value && typeof value === 'object') {
+        value = value[k];
+      } else {
+        return key;
+      }
+    }
+    return typeof value === 'string' ? value : key;
+  }, [language]);
+
   return useMemo(() => ({
     language,
     setLanguage: changeLanguage,
     isLoading,
-  }), [language, changeLanguage, isLoading]);
+    t,
+  }), [language, changeLanguage, isLoading, t]);
 });
