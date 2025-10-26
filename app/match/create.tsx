@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Platform,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -37,7 +39,8 @@ export default function CreateMatchScreen() {
   const [matchType, setMatchType] = useState<MatchType>('friendly');
   const [maxPlayers, setMaxPlayers] = useState<string>('4');
   const [selectedField, setSelectedField] = useState<Field | null>(null);
-  const [scheduledTime, setScheduledTime] = useState<string>('');
+  const [scheduledTime, setScheduledTime] = useState<Date>(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [showFieldPicker, setShowFieldPicker] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<CourtPosition | null>(null);
   const [isCreating,  setIsCreating] = useState<boolean>(false);
@@ -267,21 +270,27 @@ export default function CreateMatchScreen() {
             </View>
           </TouchableOpacity>
 
-          <View style={styles.inputGroup}>
+          <TouchableOpacity
+            style={styles.inputGroup}
+            onPress={() => setShowTimePicker(true)}
+          >
             <View style={styles.inputIcon}>
               <Clock color={Colors.colors.primary} size={20} strokeWidth={2.5} />
             </View>
             <View style={styles.inputContent}>
               <Text style={styles.inputLabel}>Scheduled Time (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={scheduledTime}
-                onChangeText={setScheduledTime}
-                placeholder="HH:MM"
-                placeholderTextColor={Colors.colors.textMuted}
-              />
+              <View style={styles.inputRow}>
+                <Text style={styles.inputValue}>
+                  {scheduledTime.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })}
+                </Text>
+                <ChevronDown color={Colors.colors.textMuted} size={20} />
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -324,6 +333,37 @@ export default function CreateMatchScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {showTimePicker && (
+        <DateTimePicker
+          value={scheduledTime}
+          mode="time"
+          is24Hour={true}
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+            if (Platform.OS === 'android') {
+              setShowTimePicker(false);
+            }
+            if (selectedDate) {
+              setScheduledTime(selectedDate);
+            }
+          }}
+          {...(Platform.OS === 'ios' && {
+            style: { backgroundColor: Colors.colors.surface },
+          })}
+        />
+      )}
+
+      {Platform.OS === 'ios' && showTimePicker && (
+        <View style={[styles.timePickerFooter, { paddingBottom: insets.bottom + 20 }]}>
+          <TouchableOpacity
+            style={styles.timePickerButton}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <Text style={styles.timePickerButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <Modal
         visible={showFieldPicker}
@@ -721,5 +761,27 @@ const styles = StyleSheet.create({
   fieldOptionAddressText: {
     fontSize: 14,
     color: Colors.colors.textMuted,
+  },
+  timePickerFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    backgroundColor: Colors.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.colors.border,
+  },
+  timePickerButton: {
+    backgroundColor: Colors.colors.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  timePickerButtonText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.colors.textPrimary,
   },
 });
