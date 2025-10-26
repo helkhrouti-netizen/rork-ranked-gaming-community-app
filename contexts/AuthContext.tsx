@@ -129,11 +129,12 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const signup = useCallback(async (
     email: string,
     password: string,
-    username: string
+    username: string,
+    phoneNumber?: string
   ) => {
     try {
       console.log('🔧 Signup');
-      const mockUser = await mockDataProvider.signup(email, password, username);
+      const mockUser = await mockDataProvider.signup(email, password, username, phoneNumber);
       
       const authUser: AuthUser = {
         id: mockUser.id,
