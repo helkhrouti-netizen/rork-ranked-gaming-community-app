@@ -59,9 +59,9 @@ function getRandomWinsLosses(tier: string): [number, number] {
 }
 
 const DEFAULT_MOCK_USERS: MockUser[] = [
-  { id: 'u-01', email: 'shadow@test.com', password: 'password', username: 'ShadowStrike', city: getRandomCity(), rank: getRankFromPoints(950), ...getWinsLosses(950) },
-  { id: 'u-02', email: 'phoenix@test.com', password: 'password', username: 'PhoenixAce', city: getRandomCity(), rank: getRankFromPoints(1020), ...getWinsLosses(1020) },
-  { id: 'u-03', email: 'vortex@test.com', password: 'password', username: 'VortexKing', city: getRandomCity(), rank: getRankFromPoints(880), ...getWinsLosses(880) },
+  { id: 'u-01', email: 'shadow@test.com', password: 'password', username: 'ShadowStrike', phoneNumber: '+212 6 12 34 56 78', city: getRandomCity(), rank: getRankFromPoints(950), ...getWinsLosses(950) },
+  { id: 'u-02', email: 'phoenix@test.com', password: 'password', username: 'PhoenixAce', phoneNumber: '+212 6 23 45 67 89', city: getRandomCity(), rank: getRankFromPoints(1020), ...getWinsLosses(1020) },
+  { id: 'u-03', email: 'vortex@test.com', password: 'password', username: 'VortexKing', phoneNumber: '+212 6 34 56 78 90', city: getRandomCity(), rank: getRankFromPoints(880), ...getWinsLosses(880) },
   { id: 'u-04', email: 'nova@test.com', password: 'password', username: 'NovaBlaze', city: getRandomCity(), rank: getRankFromPoints(790), ...getWinsLosses(790) },
   { id: 'u-05', email: 'titan@test.com', password: 'password', username: 'TitanCrush', city: getRandomCity(), rank: getRankFromPoints(840), ...getWinsLosses(840) },
   { id: 'u-06', email: 'bolt@test.com', password: 'password', username: 'BoltRacer', city: getRandomCity(), rank: getRankFromPoints(920), ...getWinsLosses(920) },

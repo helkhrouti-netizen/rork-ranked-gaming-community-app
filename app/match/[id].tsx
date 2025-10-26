@@ -18,7 +18,7 @@ import {
   Zap,
   Heart,
   Trophy,
-
+  Phone,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -107,6 +107,7 @@ export default function MatchDetailsScreen() {
     losses: user.losses,
     reputation: user.reputation,
     level: user.level,
+    phoneNumber: user.phoneNumber,
   });
 
   const handleJoinMatch = async () => {
@@ -238,6 +239,12 @@ export default function MatchDetailsScreen() {
                 <Text style={styles.hostRankEmoji}>{hostRankInfo.icon}</Text>
                 <Text style={styles.hostRankText}>{formatRank(match.host.rank)}</Text>
               </View>
+              {hasJoined && match.host.phoneNumber && (
+                <View style={styles.hostPhoneContainer}>
+                  <Phone color={Colors.colors.primary} size={14} strokeWidth={2.5} />
+                  <Text style={styles.hostPhoneText}>{match.host.phoneNumber}</Text>
+                </View>
+              )}
               <View style={styles.hostStats}>
                 <View style={styles.hostStat}>
                   <Trophy color={Colors.colors.warning} size={14} strokeWidth={2.5} />
@@ -545,6 +552,23 @@ const styles = StyleSheet.create({
   hostStatText: {
     fontSize: 12,
     color: Colors.colors.textSecondary,
+  },
+  hostPhoneContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 4,
+    backgroundColor: Colors.colors.surfaceLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  hostPhoneText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.colors.primary,
   },
 
   infoCard: {

@@ -17,6 +17,7 @@ export interface Player {
   reputation: number;
   level: number;
   preferredSide?: CourtPosition;
+  phoneNumber?: string;
 }
 
 export interface MatchPlayerPosition {
