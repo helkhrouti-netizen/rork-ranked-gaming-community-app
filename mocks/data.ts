@@ -78,6 +78,13 @@ export const MOCK_MATCHES: Match[] = [
     pointReward: 50,
     pointPenalty: 30,
     createdAt: new Date(),
+    playerPositions: [
+      { playerId: '1', position: 'top-left' },
+      { playerId: '2', position: 'top-right' },
+      { playerId: '3', position: 'bottom-left' },
+      { playerId: '5', position: 'bottom-right' },
+    ],
+    chatRoomId: 'chat-m1',
   },
   {
     id: 'm2',
@@ -90,6 +97,10 @@ export const MOCK_MATCHES: Match[] = [
     pointReward: 25,
     pointPenalty: 15,
     createdAt: new Date(),
+    playerPositions: [
+      { playerId: '3', position: 'top-left' },
+    ],
+    chatRoomId: 'chat-m2',
   },
   {
     id: 'm3',
@@ -103,6 +114,11 @@ export const MOCK_MATCHES: Match[] = [
     pointReward: 55,
     pointPenalty: 35,
     createdAt: new Date(),
+    playerPositions: [
+      { playerId: '4', position: 'top-left' },
+      { playerId: '5', position: 'top-right' },
+    ],
+    chatRoomId: 'chat-m3',
   },
 ];
 
