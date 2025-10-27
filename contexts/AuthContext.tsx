@@ -1,38 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { Player } from '@/lib/api';
-import { mockDataProvider, MockUser } from '@/lib/mockData';
 import { getRankFromPoints } from '@/constants/ranks';
+import { supabase } from '@/lib/supabase';
+import { Session } from '@supabase/supabase-js';
 
-const TOKEN_KEY = 'auth_token';
-const USER_KEY = 'auth_user';
 
-const secureStorage = {
-  async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
-    return await SecureStore.getItemAsync(key);
-  },
-
-  async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-      return;
-    }
-    await SecureStore.setItemAsync(key, value);
-  },
-
-  async deleteItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-      return;
-    }
-    await SecureStore.deleteItemAsync(key);
-  },
-};
 
 export interface AuthUser {
   id: string;
@@ -43,30 +16,45 @@ export interface AuthUser {
 }
 
 const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
-  const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
   const [initialized, setInitialized] = useState<boolean>(false);
 
-  const saveAuth = useCallback(async (authToken: string, authUser: AuthUser) => {
+  const loadUserProfile = useCallback(async (userId: string) => {
     try {
-      await secureStorage.setItem(TOKEN_KEY, authToken);
-      await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
-      setToken(authToken);
-      setUser(authUser);
-      console.log('✅ Auth saved successfully');
-    } catch (error) {
-      console.error('Failed to save auth:', error);
+      const { data: profile, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        const authUser: AuthUser = {
+          id: profile.id,
+          email: profile.email,
+          username: profile.username,
+          level_score: profile.level_score || profile.rank_points || 0,
+          level_tier: profile.level_tier || profile.rank_division || 'Cuivre',
+        };
+        setUser(authUser);
+        setIsOnboarded(!!profile.username && (profile.level_score || profile.rank_points || 0) > 0);
+        console.log('✅ User profile loaded:', authUser.username, authUser.level_tier, authUser.level_score);
+        return authUser;
+      }
+      return null;
+    } catch (error: any) {
+      console.error('Error loading user profile:', error);
       throw error;
     }
   }, []);
 
   const clearAuth = useCallback(async () => {
     try {
-      await secureStorage.deleteItem(TOKEN_KEY);
-      await secureStorage.deleteItem(USER_KEY);
-      setToken(null);
+      setSession(null);
       setUser(null);
       setIsOnboarded(false);
       console.log('🗑️ Auth cleared');
@@ -80,36 +68,21 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     
     setIsLoading(true);
     try {
-      console.log('🔧 Loading auth');
-      await mockDataProvider.initialize();
-      
-      const storedToken = await secureStorage.getItem(TOKEN_KEY);
-      const storedUser = await secureStorage.getItem(USER_KEY);
+      console.log('🔧 Loading auth session');
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        
-        try {
-          const mockUser = await mockDataProvider.getCurrentUser();
-          if (mockUser) {
-            const authUser: AuthUser = {
-              id: mockUser.id,
-              email: mockUser.email,
-              username: mockUser.username,
-              level_score: mockUser.rank.points || 0,
-              level_tier: mockUser.rank.division,
-            };
-            setUser(authUser);
-            await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
-            setIsOnboarded(!!mockUser.username && (mockUser.rank.points || 0) > 0);
-            console.log('✅ Auth loaded successfully:', authUser.username, authUser.level_tier, authUser.level_score);
-          } else {
-            await clearAuth();
-          }
-        } catch (error: any) {
-          console.error('Error loading user:', error);
-          await clearAuth();
-        }
+      if (error) {
+        console.error('Session error:', error);
+        await clearAuth();
+        return;
+      }
+
+      if (currentSession?.user) {
+        setSession(currentSession);
+        await loadUserProfile(currentSession.user.id);
+        console.log('✅ Auth session loaded successfully');
+      } else {
+        await clearAuth();
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -118,13 +91,30 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       setIsLoading(false);
       setInitialized(true);
     }
-  }, [clearAuth, initialized]);
+  }, [clearAuth, initialized, loadUserProfile]);
 
   useEffect(() => {
     if (!initialized) {
       loadAuth();
     }
-  }, [loadAuth, initialized]);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('🔐 Auth state changed:', event);
+      
+      if (event === 'SIGNED_IN' && newSession?.user) {
+        setSession(newSession);
+        await loadUserProfile(newSession.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        await clearAuth();
+      } else if (event === 'TOKEN_REFRESHED' && newSession) {
+        setSession(newSession);
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [loadAuth, initialized, loadUserProfile, clearAuth]);
 
   const signup = useCallback(async (
     email: string,
@@ -133,18 +123,46 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     phoneNumber?: string
   ) => {
     try {
-      console.log('🔧 Signup');
-      const mockUser = await mockDataProvider.signup(email, password, username, phoneNumber);
+      console.log('🔧 Signup with Supabase');
       
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            phone_number: phoneNumber,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+      if (!authData.user) throw new Error('Failed to create user');
+
+      const { error: profileError } = await supabase
+        .from('players')
+        .update({
+          username,
+          phone_number: phoneNumber,
+        })
+        .eq('id', authData.user.id)
+        .select()
+        .single();
+
+      if (profileError) {
+        console.warn('Profile update error:', profileError);
+      }
+
       const authUser: AuthUser = {
-        id: mockUser.id,
-        email: mockUser.email,
-        username: mockUser.username,
-        level_score: mockUser.rank.points || 0,
-        level_tier: mockUser.rank.division,
+        id: authData.user.id,
+        email: authData.user.email!,
+        username,
+        level_score: 0,
+        level_tier: 'Cuivre',
       };
 
-      await saveAuth('auth-token-' + mockUser.id, authUser);
+      setSession(authData.session);
+      setUser(authUser);
       setIsOnboarded(false);
       
       console.log('✅ Signup successful:', email);
@@ -153,26 +171,27 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.error('❌ Signup error:', error);
       throw error;
     }
-  }, [saveAuth]);
+  }, []);
 
   const login = useCallback(async (
     email: string,
     password: string
   ) => {
     try {
-      console.log('🔧 Login');
-      const mockUser = await mockDataProvider.login(email, password);
+      console.log('🔧 Login with Supabase');
       
-      const authUser: AuthUser = {
-        id: mockUser.id,
-        email: mockUser.email,
-        username: mockUser.username,
-        level_score: mockUser.rank.points || 0,
-        level_tier: mockUser.rank.division,
-      };
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      await saveAuth('auth-token-' + mockUser.id, authUser);
-      setIsOnboarded(!!mockUser.username && (mockUser.rank.points || 0) > 0);
+      if (signInError) throw signInError;
+      if (!authData.user || !authData.session) throw new Error('Failed to sign in');
+
+      setSession(authData.session);
+      const authUser = await loadUserProfile(authData.user.id);
+      
+      if (!authUser) throw new Error('Failed to load user profile');
       
       console.log('✅ Login successful:', email);
       return { user: authUser };
@@ -180,41 +199,28 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.error('❌ Login error:', error);
       throw error;
     }
-  }, [saveAuth]);
+  }, [loadUserProfile]);
 
   const logout = useCallback(async () => {
-    await clearAuth();
-    console.log('Logged out');
+    try {
+      await supabase.auth.signOut();
+      await clearAuth();
+      console.log('✅ Logged out');
+    } catch (error) {
+      console.error('Logout error:', error);
+      await clearAuth();
+    }
   }, [clearAuth]);
 
   const refreshProfile = useCallback(async () => {
-    if (!token || !user) {
-      console.log('⚠️ Cannot refresh profile: no token or user');
+    if (!session || !user) {
+      console.log('⚠️ Cannot refresh profile: no session or user');
       return;
     }
 
     try {
-      console.log('🔄 Refreshing profile from storage...');
-      const mockUser = await mockDataProvider.getCurrentUser();
-      if (mockUser) {
-        const authUser: AuthUser = {
-          id: mockUser.id,
-          email: mockUser.email,
-          username: mockUser.username,
-          level_score: mockUser.rank.points || 0,
-          level_tier: mockUser.rank.division,
-        };
-        setUser(authUser);
-        await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
-        setIsOnboarded(!!mockUser.username && (mockUser.rank.points || 0) > 0);
-        console.log('✅ Profile refreshed:', {
-          username: authUser.username,
-          tier: authUser.level_tier,
-          score: authUser.level_score
-        });
-      } else {
-        console.log('⚠️ No mock user found during refresh');
-      }
+      console.log('🔄 Refreshing profile from database...');
+      await loadUserProfile(user.id);
     } catch (error: any) {
       console.error('Error refreshing profile:', error);
       if (error.message?.includes('Unauthorized')) {
@@ -222,34 +228,47 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       }
       throw error;
     }
-  }, [token, user, clearAuth]);
+  }, [session, user, clearAuth, loadUserProfile]);
 
   const updateProfile = useCallback(async (updates: Partial<Player>) => {
-    if (!token || !user) throw new Error('Not authenticated');
+    if (!session || !user) throw new Error('Not authenticated');
 
     try {
       console.log('🔧 Updating profile', updates);
       
-      const mockUpdates: Partial<MockUser> = {};
-      if (updates.username) mockUpdates.username = updates.username;
+      const dbUpdates: any = {};
+      if (updates.username) dbUpdates.username = updates.username;
       if (updates.level_score !== undefined) {
         const newRank = getRankFromPoints(updates.level_score);
-        mockUpdates.rank = newRank;
+        dbUpdates.level_score = updates.level_score;
+        dbUpdates.rank_points = updates.level_score;
+        dbUpdates.level_tier = newRank.division;
+        dbUpdates.rank_division = newRank.division;
+        dbUpdates.rank_sub = newRank.level;
         console.log('🔧 Calculated new rank:', newRank);
       }
+      if (updates.level_tier) {
+        dbUpdates.level_tier = updates.level_tier;
+        dbUpdates.rank_division = updates.level_tier;
+      }
       
-      await mockDataProvider.updateUser(user.id, mockUpdates);
-      
-      const updatedMockUser = await mockDataProvider.getUser(user.id);
+      const { data: updatedProfile, error } = await supabase
+        .from('players')
+        .update(dbUpdates)
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
       const authUser: AuthUser = {
         ...user,
         username: updates.username || user.username,
         level_score: updates.level_score !== undefined ? updates.level_score : user.level_score,
-        level_tier: updatedMockUser?.rank.division || updates.level_tier || user.level_tier,
+        level_tier: updates.level_tier || updatedProfile?.level_tier || user.level_tier,
       };
       
       setUser(authUser);
-      await secureStorage.setItem(USER_KEY, JSON.stringify(authUser));
       console.log('✅ Profile updated:', {
         username: authUser.username,
         tier: authUser.level_tier,
@@ -259,10 +278,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.error('Error updating profile:', error);
       throw error;
     }
-  }, [token, user]);
+  }, [session, user]);
 
   const assessRanking = useCallback(async (answers: Record<string, any>) => {
-    if (!token) throw new Error('Not authenticated');
+    if (!session) throw new Error('Not authenticated');
 
     try {
       console.log('🔧 Assessing ranking', answers);
@@ -322,14 +341,14 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.error('Failed to assess ranking:', error);
       throw error;
     }
-  }, [token, updateProfile]);
+  }, [session, updateProfile]);
 
   return useMemo(
     () => ({
-      token,
+      session,
       user,
       isLoading,
-      isAuthenticated: !!token && !!user,
+      isAuthenticated: !!session && !!user,
       isOnboarded,
       signup,
       login,
@@ -338,7 +357,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       updateProfile,
       assessRanking,
     }),
-    [token, user, isLoading, isOnboarded, signup, login, logout, refreshProfile, updateProfile, assessRanking]
+    [session, user, isLoading, isOnboarded, signup, login, logout, refreshProfile, updateProfile, assessRanking]
   );
 });
 
