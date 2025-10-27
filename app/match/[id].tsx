@@ -22,10 +22,11 @@ import {
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { formatRank, RANK_INFO } from '@/constants/ranks';
+import { formatRank, RANK_INFO, getRankFromPoints } from '@/constants/ranks';
 import { Match, Player } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
+import { supabase } from '@/lib/supabase';
 
 
 export default function MatchDetailsScreen() {
@@ -50,48 +51,151 @@ export default function MatchDetailsScreen() {
 
     try {
       setIsLoading(true);
-      await mockDataProvider.initialize();
       
-      const mockMatch = await mockDataProvider.getMatch(id);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const useMockData = !authUser;
 
-      if (!mockMatch) {
-        console.error('Match not found');
-        return;
+      if (useMockData) {
+        console.log('📍 Using mock data for match');
+        await mockDataProvider.initialize();
+        
+        const mockMatch = await mockDataProvider.getMatch(id);
+
+        if (!mockMatch) {
+          console.error('Match not found');
+          return;
+        }
+
+        const host = await mockDataProvider.getUser(mockMatch.hostId);
+        const matchPlayers = await mockDataProvider.getMatchPlayers(id);
+
+        if (!host) {
+          console.error('Host not found');
+          return;
+        }
+
+        const safeMatchPlayers = Array.isArray(matchPlayers) ? matchPlayers : [];
+        const safePlayers = safeMatchPlayers.map(convertMockUserToPlayer);
+
+        const formattedMatch: Match = {
+          id: mockMatch.id,
+          type: mockMatch.type,
+          status: mockMatch.status,
+          host: convertMockUserToPlayer(host),
+          players: safePlayers,
+          maxPlayers: mockMatch.maxPlayers,
+          field: mockMatch.field,
+          scheduledTime: mockMatch.scheduledTime,
+          pointReward: mockMatch.pointReward,
+          pointPenalty: mockMatch.pointPenalty,
+          createdAt: mockMatch.createdAt,
+          playerPositions: Array.isArray(mockMatch.playerPositions) ? mockMatch.playerPositions : [],
+          chatRoomId: mockMatch.chatRoomId || '',
+        };
+
+        setMatch(formattedMatch);
+      } else {
+        console.log('📍 Fetching match from Supabase');
+        
+        const { data: matchData, error: matchError } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (matchError || !matchData) {
+          console.error('❌ Match not found:', matchError);
+          return;
+        }
+
+        const { data: hostProfile, error: hostError } = await supabase
+          .from('profiles')
+          .select('id, username, level_score, level_tier, city, phone_number')
+          .eq('id', matchData.host_id)
+          .single();
+
+        if (hostError || !hostProfile) {
+          console.error('❌ Host not found:', hostError);
+          return;
+        }
+
+        console.log('📞 Host phone number from DB:', hostProfile.phone_number);
+
+        const { data: participants, error: participantsError } = await supabase
+          .from('match_participants')
+          .select('user_id, profiles!inner(id, username, level_score, level_tier, city, phone_number)')
+          .eq('match_id', id);
+
+        if (participantsError) {
+          console.error('❌ Failed to fetch participants:', participantsError);
+          return;
+        }
+
+        const isUserParticipant = participants?.some(p => p.user_id === authUser.id);
+        console.log('👤 Is user participant:', isUserParticipant, 'User ID:', authUser.id);
+
+        const players: Player[] = participants?.map((p: any) => {
+          const profile = p.profiles;
+          const rank = getRankFromPoints(profile.level_score || 0);
+          return {
+            id: profile.id,
+            username: profile.username || 'Unknown',
+            rank,
+            city: profile.city || 'CASABLANCA',
+            wins: 0,
+            losses: 0,
+            reputation: 5.0,
+            level: 1,
+            phoneNumber: isUserParticipant ? profile.phone_number : undefined,
+          };
+        }) || [];
+
+        const hostRank = getRankFromPoints(hostProfile.level_score || 0);
+        const host: Player = {
+          id: hostProfile.id,
+          username: hostProfile.username || 'Unknown',
+          rank: hostRank,
+          city: hostProfile.city || 'CASABLANCA',
+          wins: 0,
+          losses: 0,
+          reputation: 5.0,
+          level: 1,
+          phoneNumber: isUserParticipant ? hostProfile.phone_number : undefined,
+        };
+
+        console.log('📱 Host data with phone:', {
+          id: host.id,
+          username: host.username,
+          phoneNumber: host.phoneNumber,
+          isUserParticipant
+        });
+
+        const formattedMatch: Match = {
+          id: matchData.id,
+          type: matchData.match_type || 'friendly',
+          status: matchData.status || 'waiting',
+          host,
+          players,
+          maxPlayers: matchData.max_players || 4,
+          field: {
+            id: matchData.field_id || '1',
+            name: matchData.field_name || 'Court 1',
+            address: matchData.field_address || 'Unknown',
+            city: matchData.field_city || 'CASABLANCA',
+            type: (matchData.field_type as 'indoor' | 'outdoor') || 'outdoor',
+          },
+          scheduledTime: matchData.scheduled_time ? new Date(matchData.scheduled_time) : undefined,
+          pointReward: matchData.point_reward || 25,
+          pointPenalty: matchData.point_penalty || 15,
+          createdAt: new Date(matchData.created_at),
+          playerPositions: [],
+          chatRoomId: matchData.chat_id || '',
+        };
+
+        setMatch(formattedMatch);
       }
-
-      const host = await mockDataProvider.getUser(mockMatch.hostId);
-      const matchPlayers = await mockDataProvider.getMatchPlayers(id);
-
-      if (!host) {
-        console.error('Host not found');
-        return;
-      }
-
-      const safeMatchPlayers = Array.isArray(matchPlayers) ? matchPlayers : [];
-
-      const safePlayers = safeMatchPlayers.map(convertMockUserToPlayer);
-
-      const formattedMatch: Match = {
-        id: mockMatch.id,
-        type: mockMatch.type,
-        status: mockMatch.status,
-        host: convertMockUserToPlayer(host),
-        players: safePlayers,
-        maxPlayers: mockMatch.maxPlayers,
-        field: mockMatch.field,
-        scheduledTime: mockMatch.scheduledTime,
-        pointReward: mockMatch.pointReward,
-        pointPenalty: mockMatch.pointPenalty,
-        createdAt: mockMatch.createdAt,
-        playerPositions: Array.isArray(mockMatch.playerPositions) ? mockMatch.playerPositions : [],
-        chatRoomId: mockMatch.chatRoomId || '',
-      };
-
-      setMatch(formattedMatch);
-
-
     } catch (error) {
-      console.error('Error loading match:', error);
+      console.error('❌ Error loading match:', error);
     } finally {
       setIsLoading(false);
     }
