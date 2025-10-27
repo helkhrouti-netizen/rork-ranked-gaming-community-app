@@ -39,6 +39,9 @@ export interface Match {
   createdAt: Date;
   playerPositions: MatchPlayerPosition[];
   chatRoomId: string;
+  minRank?: string;
+  maxRank?: string;
+  isRankOpen?: boolean;
 }
 
 export interface Tournament {

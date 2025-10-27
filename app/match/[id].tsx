@@ -19,6 +19,7 @@ import {
   Heart,
   Trophy,
   Phone,
+  Shield,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -26,6 +27,7 @@ import { formatRank, RANK_INFO, getRankFromPoints } from '@/constants/ranks';
 import { Match, Player } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
+import { formatRankRange } from '@/utils/rankUtils';
 import { supabase } from '@/lib/supabase';
 
 
@@ -190,6 +192,9 @@ export default function MatchDetailsScreen() {
           createdAt: new Date(matchData.created_at),
           playerPositions: [],
           chatRoomId: matchData.chat_id || '',
+          minRank: matchData.min_rank,
+          maxRank: matchData.max_rank,
+          isRankOpen: matchData.is_rank_open !== false,
         };
 
         setMatch(formattedMatch);
@@ -366,7 +371,22 @@ export default function MatchDetailsScreen() {
           </View>
         </View>
 
-
+        {match.isRankOpen === false && (match.minRank || match.maxRank) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rank Requirements</Text>
+            <View style={styles.rankRequirement}>
+              <View style={styles.rankRequirementIcon}>
+                <Shield color={Colors.colors.primary} size={20} strokeWidth={2.5} />
+              </View>
+              <View style={styles.rankRequirementContent}>
+                <Text style={styles.rankRequirementLabel}>Allowed Ranks</Text>
+                <Text style={styles.rankRequirementValue}>
+                  {formatRankRange(match.minRank, match.maxRank)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Match Information</Text>
@@ -674,7 +694,37 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.colors.primary,
   },
-
+  rankRequirement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+  },
+  rankRequirementIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankRequirementContent: {
+    flex: 1,
+  },
+  rankRequirementLabel: {
+    fontSize: 12,
+    color: Colors.colors.textSecondary,
+    marginBottom: 4,
+  },
+  rankRequirementValue: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.primary,
+  },
   infoCard: {
     backgroundColor: Colors.colors.surface,
     borderRadius: 16,

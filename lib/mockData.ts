@@ -29,6 +29,9 @@ export interface MockMatch extends Omit<Match, 'host' | 'players'> {
   playerIds: string[];
   playerPositions: { playerId: string; position: CourtPosition }[];
   chatRoomId: string;
+  minRank?: string;
+  maxRank?: string;
+  isRankOpen?: boolean;
 }
 
 export interface MockData {
@@ -341,6 +344,9 @@ class MockDataProvider {
       createdAt: new Date(),
       playerPositions: [{ playerId: hostId, position: hostPosition }],
       chatRoomId: '',
+      isRankOpen: matchData.isRankOpen !== undefined ? matchData.isRankOpen : true,
+      minRank: matchData.minRank,
+      maxRank: matchData.maxRank,
     };
 
     if (matchData.scheduledTime) {
@@ -389,6 +395,18 @@ class MockDataProvider {
 
     if (match.playerIds.includes(userId)) {
       throw new Error('Already in match');
+    }
+
+    const user = this.data!.users.find((u) => u.id === userId);
+    if (user && !match.isRankOpen && (match.minRank || match.maxRank)) {
+      const { isRankInRange } = await import('@/utils/rankUtils');
+      const userRank = { division: user.rank.division, level: user.rank.level };
+      
+      if (!isRankInRange(userRank, match.minRank, match.maxRank)) {
+        const { formatRankRange } = await import('@/utils/rankUtils');
+        const rangeText = formatRankRange(match.minRank, match.maxRank);
+        throw new Error(`This match is limited to players ${rangeText}.`);
+      }
     }
 
     if (match.playerIds.length >= match.maxPlayers) {

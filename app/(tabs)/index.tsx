@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { mockDataProvider, MockUser } from '@/lib/mockData';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getTranslation } from '@/constants/translations';
+import { formatRankRange } from '@/utils/rankUtils';
 
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
@@ -83,6 +84,9 @@ export default function PlayScreen() {
             createdAt: mockMatch.createdAt,
             playerPositions: Array.isArray(mockMatch.playerPositions) ? mockMatch.playerPositions : [],
             chatRoomId: mockMatch.chatRoomId || '',
+            minRank: mockMatch.minRank,
+            maxRank: mockMatch.maxRank,
+            isRankOpen: mockMatch.isRankOpen !== false,
           };
 
           return formattedMatch;
@@ -345,6 +349,13 @@ function MatchCard({ match }: { match: Match }) {
       </View>
 
       <View style={styles.matchCardBody}>
+        {match.isRankOpen === false && (match.minRank || match.maxRank) && (
+          <View style={styles.matchRankBadge}>
+            <Text style={styles.matchRankBadgeText}>
+              {formatRankRange(match.minRank, match.maxRank)}
+            </Text>
+          </View>
+        )}
         <View style={styles.matchHost}>
           <View style={[styles.matchHostAvatar, { borderColor: hostRankInfo.color }]}>
             <Text style={styles.matchHostAvatarText}>{match.host.username[0]}</Text>
@@ -654,6 +665,21 @@ const styles = StyleSheet.create({
   matchDetailText: {
     fontSize: 14,
     color: Colors.colors.textSecondary,
+  },
+  matchRankBadge: {
+    backgroundColor: Colors.colors.primary + '15',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: Colors.colors.primary + '30',
+  },
+  matchRankBadgeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.colors.primary,
   },
   matchCardFooter: {
     padding: 16,

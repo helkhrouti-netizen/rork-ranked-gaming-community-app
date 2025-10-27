@@ -22,6 +22,7 @@ import {
   Heart,
   ChevronDown,
   Building2,
+  Shield,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -31,6 +32,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Field, getFieldsByCity } from '@/constants/cities';
 import { mockDataProvider } from '@/lib/mockData';
 import { PadelCourtSelector } from '@/components/PadelCourtSelector';
+import { getAllRankOptions } from '@/utils/rankUtils';
 
 export default function CreateMatchScreen() {
   const insets = useSafeAreaInsets();
@@ -45,6 +47,13 @@ export default function CreateMatchScreen() {
   const [selectedPosition, setSelectedPosition] = useState<CourtPosition | null>(null);
   const [isCreating,  setIsCreating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [isRankOpen, setIsRankOpen] = useState<boolean>(true);
+  const [minRank, setMinRank] = useState<string | null>(null);
+  const [maxRank, setMaxRank] = useState<string | null>(null);
+  const [showMinRankPicker, setShowMinRankPicker] = useState<boolean>(false);
+  const [showMaxRankPicker, setShowMaxRankPicker] = useState<boolean>(false);
+
+  const rankOptions = getAllRankOptions();
 
   const rankInfo = user?.level_tier
     ? (RANK_INFO[user.level_tier as keyof typeof RANK_INFO] || RANK_INFO['Cuivre'])
@@ -89,6 +98,9 @@ export default function CreateMatchScreen() {
         pointPenalty,
         field: selectedField,
         hostPosition: selectedPosition,
+        isRankOpen,
+        minRank: isRankOpen ? undefined : (minRank || undefined),
+        maxRank: isRankOpen ? undefined : (maxRank || undefined),
       });
 
       console.log('✅ Match created successfully:', newMatch.id);
@@ -105,7 +117,7 @@ export default function CreateMatchScreen() {
     } finally {
       setIsCreating(false);
     }
-  }, [user, matchType, maxPlayers, selectedField, selectedPosition, pointReward, pointPenalty, router]);
+  }, [user, matchType, maxPlayers, selectedField, selectedPosition, pointReward, pointPenalty, router, isRankOpen, minRank, maxRank]);
 
   return (
     <View style={styles.container}>
@@ -294,6 +306,71 @@ export default function CreateMatchScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Rank Restrictions</Text>
+          <Text style={styles.sectionHint}>Limit who can join based on rank level</Text>
+          
+          <TouchableOpacity
+            style={styles.rankToggle}
+            onPress={() => setIsRankOpen(!isRankOpen)}
+          >
+            <View style={styles.rankToggleContent}>
+              <View style={styles.rankToggleIcon}>
+                <Shield color={Colors.colors.primary} size={20} strokeWidth={2.5} />
+              </View>
+              <View style={styles.rankToggleText}>
+                <Text style={styles.rankToggleTitle}>Open to All Ranks</Text>
+                <Text style={styles.rankToggleSubtitle}>
+                  {isRankOpen ? 'Everyone can join' : 'Rank restrictions enabled'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.rankToggleSwitch, isRankOpen && styles.rankToggleSwitchActive]}>
+              <View style={[styles.rankToggleKnob, isRankOpen && styles.rankToggleKnobActive]} />
+            </View>
+          </TouchableOpacity>
+
+          {!isRankOpen && (
+            <View style={styles.rankSelectors}>
+              <TouchableOpacity
+                style={styles.inputGroup}
+                onPress={() => setShowMinRankPicker(true)}
+              >
+                <View style={styles.inputIcon}>
+                  <Shield color={Colors.colors.primary} size={20} strokeWidth={2.5} />
+                </View>
+                <View style={styles.inputContent}>
+                  <Text style={styles.inputLabel}>Minimum Rank</Text>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.inputValue}>
+                      {minRank || 'No minimum'}
+                    </Text>
+                    <ChevronDown color={Colors.colors.textMuted} size={20} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.inputGroup}
+                onPress={() => setShowMaxRankPicker(true)}
+              >
+                <View style={styles.inputIcon}>
+                  <Shield color={Colors.colors.primary} size={20} strokeWidth={2.5} />
+                </View>
+                <View style={styles.inputContent}>
+                  <Text style={styles.inputLabel}>Maximum Rank</Text>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.inputValue}>
+                      {maxRank || 'No maximum'}
+                    </Text>
+                    <ChevronDown color={Colors.colors.textMuted} size={20} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionLabel}>Your Position</Text>
           <Text style={styles.sectionHint}>Select where you&apos;ll play on the court</Text>
           <View style={styles.courtContainer}>
@@ -364,6 +441,134 @@ export default function CreateMatchScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal
+        visible={showMinRankPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMinRankPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMinRankPicker(false)}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Minimum Rank</Text>
+              <Text style={styles.modalSubtitle}>Lowest rank allowed to join</Text>
+              <TouchableOpacity
+                style={[
+                  styles.rankOption,
+                  minRank === null && styles.rankOptionActive,
+                ]}
+                onPress={() => {
+                  setMinRank(null);
+                  setShowMinRankPicker(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.rankOptionText,
+                    minRank === null && styles.rankOptionTextActive,
+                  ]}
+                >
+                  No Minimum
+                </Text>
+              </TouchableOpacity>
+              {rankOptions.map((rank) => (
+                <TouchableOpacity
+                  key={rank}
+                  style={[
+                    styles.rankOption,
+                    rank === minRank && styles.rankOptionActive,
+                  ]}
+                  onPress={() => {
+                    setMinRank(rank);
+                    setShowMinRankPicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.rankOptionText,
+                      rank === minRank && styles.rankOptionTextActive,
+                    ]}
+                  >
+                    {rank}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={showMaxRankPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMaxRankPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMaxRankPicker(false)}
+        >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Maximum Rank</Text>
+              <Text style={styles.modalSubtitle}>Highest rank allowed to join</Text>
+              <TouchableOpacity
+                style={[
+                  styles.rankOption,
+                  maxRank === null && styles.rankOptionActive,
+                ]}
+                onPress={() => {
+                  setMaxRank(null);
+                  setShowMaxRankPicker(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.rankOptionText,
+                    maxRank === null && styles.rankOptionTextActive,
+                  ]}
+                >
+                  No Maximum
+                </Text>
+              </TouchableOpacity>
+              {rankOptions.map((rank) => (
+                <TouchableOpacity
+                  key={rank}
+                  style={[
+                    styles.rankOption,
+                    rank === maxRank && styles.rankOptionActive,
+                  ]}
+                  onPress={() => {
+                    setMaxRank(rank);
+                    setShowMaxRankPicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.rankOptionText,
+                      rank === maxRank && styles.rankOptionTextActive,
+                    ]}
+                  >
+                    {rank}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal
         visible={showFieldPicker}
@@ -783,5 +988,88 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700' as const,
     color: Colors.colors.textPrimary,
+  },
+  rankToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+  },
+  rankToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1,
+  },
+  rankToggleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankToggleText: {
+    flex: 1,
+  },
+  rankToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
+    marginBottom: 2,
+  },
+  rankToggleSubtitle: {
+    fontSize: 12,
+    color: Colors.colors.textSecondary,
+  },
+  rankToggleSwitch: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.colors.border,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  rankToggleSwitchActive: {
+    backgroundColor: Colors.colors.primary,
+  },
+  rankToggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.colors.textPrimary,
+    alignSelf: 'flex-start',
+  },
+  rankToggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
+  rankSelectors: {
+    gap: 12,
+  },
+  rankOption: {
+    backgroundColor: Colors.colors.surfaceLight,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  rankOptionActive: {
+    backgroundColor: Colors.colors.primary + '10',
+    borderColor: Colors.colors.primary,
+  },
+  rankOptionText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
+    textAlign: 'center',
+  },
+  rankOptionTextActive: {
+    color: Colors.colors.primary,
   },
 });
