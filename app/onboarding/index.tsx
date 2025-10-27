@@ -285,6 +285,7 @@ export default function OnboardingScreen() {
       console.log('💾 Saving onboarding with completed flag...');
       
       const answersMap: Record<string, any> = {
+        username: state.username,
         avatarUri: state.avatarUri,
         city: state.city,
         preferredSide: state.preferredSide,
@@ -294,6 +295,7 @@ export default function OnboardingScreen() {
         answersMap[`q${a.questionIndex}`] = a.value;
       });
       
+      console.log('📊 Assessing ranking with data:', answersMap);
       await assessRanking(answersMap);
 
       console.log('✅ Onboarding completed, navigating to home...');

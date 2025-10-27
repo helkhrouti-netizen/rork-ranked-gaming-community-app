@@ -23,6 +23,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
 
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
+      console.log('🔍 Loading user profile for ID:', userId);
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -38,13 +39,19 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         const authUser: AuthUser = {
           id: profile.id,
           email: profile.email,
-          username: profile.username,
+          username: profile.username || '',
           level_score: profile.level_score || profile.rank_points || 0,
           level_tier: profile.level_tier || profile.rank_division || 'Cuivre',
         };
+        const onboarded = !!profile.username && (profile.level_score || profile.rank_points || 0) > 0;
         setUser(authUser);
-        setIsOnboarded(!!profile.username && (profile.level_score || profile.rank_points || 0) > 0);
-        console.log('✅ User profile loaded:', authUser.username, authUser.level_tier, authUser.level_score);
+        setIsOnboarded(onboarded);
+        console.log('✅ User profile loaded:', {
+          username: authUser.username || '(empty)',
+          tier: authUser.level_tier,
+          score: authUser.level_score,
+          isOnboarded: onboarded
+        });
         return authUser;
       }
       return null;
@@ -259,7 +266,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('🔧 Updating profile', updates);
       
       const dbUpdates: any = {};
-      if (updates.username) dbUpdates.username = updates.username;
+      if (updates.username !== undefined) dbUpdates.username = updates.username;
       if (updates.level_score !== undefined) {
         const newRank = getRankFromPoints(updates.level_score);
         dbUpdates.level_score = updates.level_score;
@@ -273,6 +280,8 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         dbUpdates.level_tier = updates.level_tier;
         dbUpdates.rank_division = updates.level_tier;
       }
+      
+      console.log('📤 Sending updates to database:', dbUpdates);
       
       const { data: updatedProfile, error } = await supabase
         .from('profiles')
@@ -288,16 +297,19 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
 
       const authUser: AuthUser = {
         ...user,
-        username: updates.username || user.username,
+        username: updates.username !== undefined ? updates.username : user.username,
         level_score: updates.level_score !== undefined ? updates.level_score : user.level_score,
         level_tier: updates.level_tier || updatedProfile?.level_tier || user.level_tier,
       };
       
       setUser(authUser);
+      const onboarded = !!authUser.username && authUser.level_score > 0;
+      setIsOnboarded(onboarded);
       console.log('✅ Profile updated:', {
         username: authUser.username,
         tier: authUser.level_tier,
-        score: authUser.level_score
+        score: authUser.level_score,
+        isOnboarded: onboarded
       });
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
@@ -351,13 +363,21 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         sub: rankMapping.sub
       });
       
-      await updateProfile({
+      const profileUpdates: any = {
         level_score: rpScore,
         level_tier: rankMapping.tier,
-      });
+      };
+      
+      if (answers.username) {
+        profileUpdates.username = answers.username;
+        console.log('🔖 Including username in update:', answers.username);
+      }
+      
+      await updateProfile(profileUpdates);
       
       setIsOnboarded(true);
       console.log('✅ Ranking assessed and saved:', {
+        username: answers.username || 'not provided',
         tier: rankMapping.tier,
         sub: rankMapping.sub,
         rp: rpScore
