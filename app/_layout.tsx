@@ -4,13 +4,17 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet, View, ActivityIndicator } from "react-native";
+import { StyleSheet, View, ActivityIndicator, LogBox } from "react-native";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Colors from "@/constants/colors";
 import { trpc } from "@/lib/trpc";
 import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
+
+LogBox.ignoreLogs([
+  'Deep imports from the \'react-native/Libraries',
+]);
 
 SplashScreen.preventAutoHideAsync();
 
