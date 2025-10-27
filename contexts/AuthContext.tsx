@@ -24,7 +24,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
       const { data: profile, error } = await supabase
-        .from('players')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
@@ -159,7 +159,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       if (!authData.user) throw new Error('Failed to create user');
 
       const { error: profileError } = await supabase
-        .from('players')
+        .from('profiles')
         .update({
           username,
           phone_number: phoneNumber,
@@ -275,7 +275,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       }
       
       const { data: updatedProfile, error } = await supabase
-        .from('players')
+        .from('profiles')
         .update(dbUpdates)
         .eq('id', user.id)
         .select()
