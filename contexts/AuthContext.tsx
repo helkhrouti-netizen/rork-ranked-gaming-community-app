@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { Player } from '@/lib/api';
 import { getRankFromPoints } from '@/constants/ranks';
@@ -18,9 +18,8 @@ export interface AuthUser {
 const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
-  const [initialized, setInitialized] = useState<boolean>(false);
 
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
@@ -68,9 +67,6 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   }, []);
 
   const loadAuth = useCallback(async () => {
-    if (initialized) return;
-    
-    setIsLoading(true);
     try {
       console.log('🔧 Loading auth session');
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
@@ -93,16 +89,34 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       await clearAuth();
     } finally {
       setIsLoading(false);
-      setInitialized(true);
     }
-  }, [clearAuth, initialized, loadUserProfile]);
+  }, [clearAuth, loadUserProfile]);
+
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (!initialized) {
-      loadAuth();
-    }
+    let mounted = true;
+
+    const initAuth = async () => {
+      if (initializedRef.current) return;
+      initializedRef.current = true;
+      
+      try {
+        console.log('🔧 Initializing auth...');
+        await loadAuth();
+      } catch (error) {
+        console.error('❌ Auth initialization failed:', error);
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!mounted) return;
+      
       console.log('🔐 Auth state changed:', event);
       
       if (event === 'SIGNED_IN' && newSession?.user) {
@@ -116,9 +130,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     });
 
     return () => {
+      mounted = false;
       authListener?.subscription.unsubscribe();
     };
-  }, [loadAuth, initialized, loadUserProfile, clearAuth]);
+  }, [loadAuth, loadUserProfile, clearAuth]);
 
   const signup = useCallback(async (
     email: string,
