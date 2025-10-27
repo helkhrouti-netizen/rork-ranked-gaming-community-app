@@ -13,7 +13,8 @@ import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 
 LogBox.ignoreLogs([
-  'Deep imports from the \'react-native/Libraries',
+  'Deep imports from the \'react-native/Libraries/Utilities/PolyfillFunctions',
+  'Deep imports from the \'react-native\' package are deprecated',
 ]);
 
 SplashScreen.preventAutoHideAsync();
