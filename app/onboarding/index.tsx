@@ -298,11 +298,15 @@ export default function OnboardingScreen() {
 
       console.log('✅ Onboarding completed, navigating to home...');
       router.replace('/(tabs)');
-    } catch (error) {
-      console.error('❌ Onboarding save error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error message:', errorMessage);
-      Alert.alert('Error', `Error saving profile: ${errorMessage}\n\nPlease try again.`);
+    } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Onboarding save error:', errorMessage);
+      
+      Alert.alert(
+        'Error', 
+        `Failed to save your profile:\n\n${errorMessage}\n\nPlease try again.`,
+        [{ text: 'OK', style: 'default' }]
+      );
       setIsSubmitting(false);
       setIsLoading(false);
     }

@@ -30,7 +30,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase error loading profile:', JSON.stringify(error, null, 2));
+        throw new Error(error.message || 'Failed to load user profile');
+      }
 
       if (profile) {
         const authUser: AuthUser = {
@@ -47,8 +50,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       }
       return null;
     } catch (error: any) {
-      console.error('Error loading user profile:', error);
-      throw error;
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Error loading user profile:', errorMessage);
+      throw new Error(`Failed to load profile: ${errorMessage}`);
     }
   }, []);
 
@@ -168,8 +172,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('✅ Signup successful:', email);
       return { user: authUser };
     } catch (error: any) {
-      console.error('❌ Signup error:', error);
-      throw error;
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Signup error:', errorMessage);
+      throw new Error(`Signup failed: ${errorMessage}`);
     }
   }, []);
 
@@ -196,8 +201,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('✅ Login successful:', email);
       return { user: authUser };
     } catch (error: any) {
-      console.error('❌ Login error:', error);
-      throw error;
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Login error:', errorMessage);
+      throw new Error(`Login failed: ${errorMessage}`);
     }
   }, [loadUserProfile]);
 
@@ -222,11 +228,12 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('🔄 Refreshing profile from database...');
       await loadUserProfile(user.id);
     } catch (error: any) {
-      console.error('Error refreshing profile:', error);
-      if (error.message?.includes('Unauthorized')) {
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Error refreshing profile:', errorMessage);
+      if (errorMessage.includes('Unauthorized')) {
         await clearAuth();
       }
-      throw error;
+      throw new Error(`Failed to refresh profile: ${errorMessage}`);
     }
   }, [session, user, clearAuth, loadUserProfile]);
 
@@ -259,7 +266,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase error updating profile:', JSON.stringify(error, null, 2));
+        throw new Error(error.message || 'Failed to update profile');
+      }
 
       const authUser: AuthUser = {
         ...user,
@@ -275,8 +285,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         score: authUser.level_score
       });
     } catch (error: any) {
-      console.error('Error updating profile:', error);
-      throw error;
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Error updating profile:', errorMessage);
+      throw new Error(`Failed to update profile: ${errorMessage}`);
     }
   }, [session, user]);
 
@@ -337,9 +348,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         rp: rpScore
       });
       return assessment;
-    } catch (error) {
-      console.error('Failed to assess ranking:', error);
-      throw error;
+    } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      console.error('❌ Failed to assess ranking:', errorMessage);
+      throw new Error(`Failed to assess ranking: ${errorMessage}`);
     }
   }, [session, updateProfile]);
 
