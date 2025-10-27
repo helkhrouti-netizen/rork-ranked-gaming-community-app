@@ -31,20 +31,26 @@ DROP POLICY IF EXISTS "Anyone can leave matches (dev)" ON match_participants;
 -- 3. CHATS TABLE POLICIES
 -- ============================================
 
--- Users can view chats they are members of
-CREATE POLICY "Users can view their chats"
-ON chats FOR SELECT
-USING (
-  auth.uid() IN (
-    SELECT user_id FROM chat_members WHERE chat_id = chats.id
-  )
-);
-
 -- System can create chats (for match creation trigger)
 -- Uses SECURITY DEFINER function to bypass RLS
-CREATE POLICY "System can create chats"
-ON chats FOR INSERT
+DROP POLICY IF EXISTS "Allow authenticated insert access to chats" ON public.chats;
+CREATE POLICY "Allow authenticated insert access to chats"
+ON public.chats
+AS PERMISSIVE FOR INSERT TO authenticated
 WITH CHECK (true);
+
+-- Users can view chats only if they are participants in the match
+DROP POLICY IF EXISTS "Allow users to view their chats" ON public.chats;
+CREATE POLICY "Allow users to view their chats"
+ON public.chats
+AS PERMISSIVE FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.match_participants
+    WHERE match_participants.match_id = chats.match_id
+      AND match_participants.profile_id = auth.uid()
+  )
+);
 
 -- Users cannot update or delete chats directly
 -- (Only through system functions)
@@ -76,22 +82,25 @@ USING (auth.uid() = user_id);
 -- 5. CHAT_MESSAGES TABLE POLICIES
 -- ============================================
 
--- Users can view messages in chats they are members of
-CREATE POLICY "Users can view chat messages"
-ON chat_messages FOR SELECT
-USING (
-  auth.uid() IN (
-    SELECT user_id FROM chat_members WHERE chat_id = chat_messages.chat_id
-  )
-);
+-- Users can only insert their own messages
+DROP POLICY IF EXISTS "Allow authenticated insert access to messages" ON public.chat_messages;
+CREATE POLICY "Allow authenticated insert access to messages"
+ON public.chat_messages
+AS PERMISSIVE FOR INSERT TO authenticated
+WITH CHECK (sender_id = auth.uid());
 
--- Users can send messages to chats they are members of
-CREATE POLICY "Users can send messages"
-ON chat_messages FOR INSERT
-WITH CHECK (
-  auth.uid() = sender_id
-  AND auth.uid() IN (
-    SELECT user_id FROM chat_members WHERE chat_id = chat_messages.chat_id
+-- Users can view messages only in chats for matches they're participating in
+DROP POLICY IF EXISTS "Allow users to view messages in their chats" ON public.chat_messages;
+CREATE POLICY "Allow users to view messages in their chats"
+ON public.chat_messages
+AS PERMISSIVE FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.chats
+    JOIN public.match_participants
+      ON match_participants.match_id = chats.match_id
+    WHERE chats.id = chat_messages.chat_id
+      AND match_participants.profile_id = auth.uid()
   )
 );
 
