@@ -22,7 +22,7 @@ export type BootResult = {
 };
 
 const LANGUAGE_KEY = '@app_language';
-const BOOT_TIMEOUT = 20000;
+const BOOT_TIMEOUT = 30000;
 
 function normalizeError(error: any, code: BootError['code']): BootError {
   const message = error?.message || error?.toString() || 'Unknown error';
@@ -60,27 +60,41 @@ async function validateSupabaseConfig(): Promise<void> {
   }
 }
 
-async function healthCheckSupabase(): Promise<void> {
+async function testSupabaseConnection(): Promise<void> {
   try {
-    console.log('🔍 Starting Supabase health check...');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    console.log('🔍 Testing direct Supabase connection...');
+    console.log('📡 Supabase URL:', Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mcgqjqkknmojspocvvxl.supabase.co');
+    console.log('🔑 Anon Key present:', !!(Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY));
     
-    const { error } = await supabase
+    const startTime = Date.now();
+    
+    const { data, error } = await supabase
       .from('profiles')
       .select('id')
-      .limit(1)
-      .abortSignal(controller.signal);
+      .limit(1);
 
-    clearTimeout(timeout);
+    const duration = Date.now() - startTime;
+    console.log(`⏱️ Query completed in ${duration}ms`);
 
     if (error) {
-      console.error('❌ Supabase health check failed:', error);
+      console.error('❌ Supabase query error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
       throw error;
     }
-    console.log('✅ Supabase health check passed');
+    
+    console.log('✅ Supabase connection successful. Data:', data);
   } catch (error: any) {
-    console.error('❌ Health check error:', error);
+    console.error('❌ Connection test error:', {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      status: error?.status,
+      stack: error?.stack?.substring(0, 200),
+    });
     if (error?.code === '401' || error?.status === 401) {
       throw normalizeError(error, 'RLS_AUTH');
     }
@@ -206,8 +220,8 @@ async function bootSequence(): Promise<BootResult> {
     console.log('✅ Config validation passed');
 
     currentStep = 'config';
-    await healthCheckSupabase();
-    console.log('✅ Database health check passed');
+    await testSupabaseConnection();
+    console.log('✅ Supabase connection test passed');
 
     currentStep = 'i18n';
     await initializeI18n();
