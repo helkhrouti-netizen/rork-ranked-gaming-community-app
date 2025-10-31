@@ -22,7 +22,7 @@ export type BootResult = {
 };
 
 const LANGUAGE_KEY = '@app_language';
-const BOOT_TIMEOUT = 8000;
+const BOOT_TIMEOUT = 20000;
 
 function normalizeError(error: any, code: BootError['code']): BootError {
   const message = error?.message || error?.toString() || 'Unknown error';
@@ -64,7 +64,7 @@ async function healthCheckSupabase(): Promise<void> {
   try {
     console.log('🔍 Starting Supabase health check...');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
     
     const { error } = await supabase
       .from('profiles')
@@ -248,7 +248,7 @@ export async function boot(): Promise<BootResult> {
   const timeout = new Promise<never>((_, reject) => {
     setTimeout(() => {
       const timeoutError = normalizeError(
-        new Error(`Boot timeout after 8 seconds at step: ${currentStep}`),
+        new Error(`Boot timeout after 20 seconds at step: ${currentStep}`),
         'BOOT_TIMEOUT'
       );
       reject({ ...timeoutError, step: currentStep });
