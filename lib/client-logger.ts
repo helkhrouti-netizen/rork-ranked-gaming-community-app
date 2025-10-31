@@ -65,8 +65,21 @@ export function logClientEvent(
   sendLogToSupabase(log).catch(() => {});
 }
 
-export function logBootTimeout(step: string): void {
-  logClientEvent('error', 'BOOT_TIMEOUT', `Boot timeout at step: ${step}`, 'boot', { step });
+export function logBootTimeout(step: string, error?: any): void {
+  const errorDetails = error ? {
+    message: error?.message || String(error),
+    code: error?.code,
+    stack: error?.stack,
+    ...error
+  } : undefined;
+  
+  logClientEvent(
+    'error', 
+    'BOOT_TIMEOUT', 
+    `Boot timeout at step: ${step}${errorDetails?.message ? ' - ' + errorDetails.message : ''}`, 
+    'boot', 
+    { step, error: errorDetails }
+  );
 }
 
 export function logDBHealthError(error: any): void {

@@ -68,7 +68,7 @@ function RootLayoutNav() {
         
         switch (result.error.code) {
           case 'BOOT_TIMEOUT':
-            logBootTimeout(result.step || 'unknown');
+            logBootTimeout(result.step || 'unknown', result.error.originalError);
             break;
           case 'DB_HEALTH':
             logDBHealthError(result.error.originalError);

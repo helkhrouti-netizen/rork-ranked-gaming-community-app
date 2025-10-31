@@ -62,10 +62,17 @@ async function validateSupabaseConfig(): Promise<void> {
 
 async function healthCheckSupabase(): Promise<void> {
   try {
+    console.log('🔍 Starting Supabase health check...');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    
     const { error } = await supabase
       .from('profiles')
       .select('id')
-      .limit(1);
+      .limit(1)
+      .abortSignal(controller.signal);
+
+    clearTimeout(timeout);
 
     if (error) {
       console.error('❌ Supabase health check failed:', error);
@@ -73,6 +80,7 @@ async function healthCheckSupabase(): Promise<void> {
     }
     console.log('✅ Supabase health check passed');
   } catch (error: any) {
+    console.error('❌ Health check error:', error);
     if (error?.code === '401' || error?.status === 401) {
       throw normalizeError(error, 'RLS_AUTH');
     }
@@ -97,6 +105,7 @@ async function initializeI18n(): Promise<void> {
 
 async function getSession() {
   try {
+    console.log('🔑 Getting session...');
     const { data: { session }, error } = await supabase.auth.getSession();
 
     if (error) {
@@ -104,8 +113,10 @@ async function getSession() {
       throw normalizeError(error, 'SESSION_ERROR');
     }
 
+    console.log('🔑 Session result:', session ? 'has session' : 'no session');
     return session;
   } catch (error: any) {
+    console.error('❌ getSession error:', error);
     if (error?.code === '401' || error?.status === 401 || error?.message?.includes('Unauthorized')) {
       throw normalizeError(error, 'RLS_AUTH');
     }
@@ -173,56 +184,76 @@ async function loadUserProfile(userId: string): Promise<{ isOnboarded: boolean }
 
 async function bootSequence(): Promise<BootResult> {
   console.log('🚀 Starting boot sequence...');
+  let currentStep: BootStep = 'init';
 
-  const isOnline = await checkNetworkConnection();
-  if (!isOnline) {
-    return {
-      success: false,
-      error: {
-        code: 'NETWORK_OFFLINE',
-        message: "You're offline. Please check your internet connection.",
-      },
-      step: 'network',
-    };
-  }
-  console.log('✅ Network check passed');
+  try {
+    currentStep = 'network';
+    const isOnline = await checkNetworkConnection();
+    if (!isOnline) {
+      return {
+        success: false,
+        error: {
+          code: 'NETWORK_OFFLINE',
+          message: "You're offline. Please check your internet connection.",
+        },
+        step: currentStep,
+      };
+    }
+    console.log('✅ Network check passed');
 
-  await validateSupabaseConfig();
-  console.log('✅ Config validation passed');
+    currentStep = 'config';
+    await validateSupabaseConfig();
+    console.log('✅ Config validation passed');
 
-  await healthCheckSupabase();
-  console.log('✅ Database health check passed');
+    currentStep = 'config';
+    await healthCheckSupabase();
+    console.log('✅ Database health check passed');
 
-  await initializeI18n();
-  console.log('✅ i18n initialized');
+    currentStep = 'i18n';
+    await initializeI18n();
+    console.log('✅ i18n initialized');
 
-  const session = await getSession();
-  console.log('✅ Session loaded:', session ? 'authenticated' : 'not authenticated');
+    currentStep = 'session';
+    const session = await getSession();
+    console.log('✅ Session loaded:', session ? 'authenticated' : 'not authenticated');
 
-  if (!session) {
+    if (!session) {
+      return {
+        success: true,
+        step: 'complete',
+        session: null,
+      };
+    }
+
+    currentStep = 'profile';
+    const { isOnboarded } = await loadUserProfile(session.user.id);
+    console.log('✅ Profile loaded, onboarded:', isOnboarded);
+
+    currentStep = 'complete';
     return {
       success: true,
       step: 'complete',
-      session: null,
+      session,
+      userId: session.user.id,
+      isOnboarded,
     };
+  } catch (error: any) {
+    throw { ...error, step: currentStep };
   }
-
-  const { isOnboarded } = await loadUserProfile(session.user.id);
-  console.log('✅ Profile loaded, onboarded:', isOnboarded);
-
-  return {
-    success: true,
-    step: 'complete',
-    session,
-    userId: session.user.id,
-    isOnboarded,
-  };
 }
 
 export async function boot(): Promise<BootResult> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(normalizeError(new Error('Boot timeout after 8 seconds'), 'BOOT_TIMEOUT')), BOOT_TIMEOUT)
-  );
+  let currentStep: BootStep = 'init';
+  
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      const timeoutError = normalizeError(
+        new Error(`Boot timeout after 8 seconds at step: ${currentStep}`),
+        'BOOT_TIMEOUT'
+      );
+      reject({ ...timeoutError, step: currentStep });
+    }, BOOT_TIMEOUT);
+  });
 
   try {
     const result = await Promise.race([bootSequence(), timeout]);
@@ -230,17 +261,20 @@ export async function boot(): Promise<BootResult> {
     return result;
   } catch (error: any) {
     console.error('❌ Boot failed:', error);
+    currentStep = error?.step || 'unknown';
     
     if (error?.code) {
       return {
         success: false,
         error: error as BootError,
+        step: currentStep,
       };
     }
 
     return {
       success: false,
       error: normalizeError(error, 'UNKNOWN'),
+      step: currentStep,
     };
   }
 }
