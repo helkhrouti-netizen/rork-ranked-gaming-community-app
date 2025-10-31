@@ -22,7 +22,7 @@ export type BootResult = {
 };
 
 const LANGUAGE_KEY = '@app_language';
-const BOOT_TIMEOUT = 30000;
+const BOOT_TIMEOUT = 60000;
 
 function normalizeError(error: any, code: BootError['code']): BootError {
   const message = error?.message || error?.toString() || 'Unknown error';
@@ -60,7 +60,7 @@ async function validateSupabaseConfig(): Promise<void> {
   }
 }
 
-async function testSupabaseConnection(): Promise<void> {
+/* async function testSupabaseConnection(): Promise<void> {
   try {
     console.log('🔍 Testing direct Supabase connection...');
     console.log('📡 Supabase URL:', Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mcgqjqkknmojspocvvxl.supabase.co');
@@ -100,7 +100,7 @@ async function testSupabaseConnection(): Promise<void> {
     }
     throw normalizeError(error, 'DB_HEALTH');
   }
-}
+} */
 
 async function initializeI18n(): Promise<void> {
   try {
@@ -120,7 +120,13 @@ async function initializeI18n(): Promise<void> {
 async function getSession() {
   try {
     console.log('🔑 Getting session...');
-    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    const sessionPromise = supabase.auth.getSession();
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Session fetch timeout after 10s')), 10000);
+    });
+    
+    const { data: { session }, error } = await Promise.race([sessionPromise, timeout]) as any;
 
     if (error) {
       console.error('❌ Session error:', error);
@@ -131,6 +137,9 @@ async function getSession() {
     return session;
   } catch (error: any) {
     console.error('❌ getSession error:', error);
+    if (error?.message?.includes('timeout')) {
+      throw normalizeError(new Error('Session fetch timed out - possible network issue'), 'SESSION_ERROR');
+    }
     if (error?.code === '401' || error?.status === 401 || error?.message?.includes('Unauthorized')) {
       throw normalizeError(error, 'RLS_AUTH');
     }
@@ -141,11 +150,18 @@ async function getSession() {
 async function loadUserProfile(userId: string): Promise<{ isOnboarded: boolean }> {
   try {
     console.log('🔍 Loading user profile for ID:', userId);
-    const { data: profile, error } = await supabase
+    
+    const profilePromise = supabase
       .from('profiles')
       .select('id, email, username, level_tier, rank_division, level_score, rank_points')
       .eq('id', userId)
       .single();
+      
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Profile fetch timeout after 10s')), 10000);
+    });
+    
+    const { data: profile, error } = await Promise.race([profilePromise, timeout]) as any;
 
     if (error) {
       if (error.code === '401' || error.code === '403') {
@@ -219,9 +235,26 @@ async function bootSequence(): Promise<BootResult> {
     await validateSupabaseConfig();
     console.log('✅ Config validation passed');
 
-    // currentStep = 'config';
-    // await testSupabaseConnection();
-    // console.log('✅ Supabase connection test passed');
+    try {
+      console.log('🔍 Testing raw network connectivity to Supabase...');
+      const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mcgqjqkknmojspocvvxl.supabase.co';
+      const response = await fetch(supabaseUrl + '/rest/v1/', {
+        method: 'HEAD',
+        headers: {
+          'apikey': Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbm1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs',
+        },
+      });
+      console.log('✅ Network connectivity OK, status:', response.status);
+    } catch (netError: any) {
+      console.error('❌ Network test failed:', {
+        message: netError?.message,
+        name: netError?.name,
+      });
+      throw normalizeError(
+        new Error(`Network connectivity failed: ${netError?.message || 'Unknown error'}`),
+        'DB_HEALTH'
+      );
+    }
 
     currentStep = 'i18n';
     await initializeI18n();
