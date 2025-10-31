@@ -1,18 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator, LogBox, Text, TouchableOpacity } from "react-native";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import Colors from "@/constants/colors";
 import { trpc } from "@/lib/trpc";
 import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
-import { boot, getBootErrorMessage, BootError } from "@/lib/boot";
-import { logBootTimeout, logDBHealthError, logRLSError, logI18nError, logConfigError } from "@/lib/client-logger";
+import { boot, BootError } from "@/lib/boot";
 import { AlertTriangle } from "lucide-react-native";
 
 LogBox.ignoreLogs([
@@ -25,22 +24,15 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function BootErrorScreen({ error, onRetry }: { error: BootError; onRetry: () => void }) {
-  const { language } = useLanguage();
-  const errorMessage = getBootErrorMessage(error, language);
-
   return (
     <View style={styles.errorContainer}>
       <View style={styles.errorContent}>
         <AlertTriangle size={64} color={Colors.colors.error} style={styles.errorIcon} />
-        <Text style={styles.errorTitle}>
-          {language === 'fr' ? 'Erreur de démarrage' : 'Startup Error'}
-        </Text>
-        <Text style={styles.errorMessage}>{errorMessage}</Text>
+        <Text style={styles.errorTitle}>Startup Error</Text>
+        <Text style={styles.errorMessage}>{error.message}</Text>
         <Text style={styles.errorCode}>Code: {error.code}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-          <Text style={styles.retryButtonText}>
-            {language === 'fr' ? 'Réessayer' : 'Retry'}
-          </Text>
+          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -48,13 +40,8 @@ function BootErrorScreen({ error, onRetry }: { error: BootError; onRetry: () => 
 }
 
 function RootLayoutNav() {
-  const { isLoading, isAuthenticated, isOnboarded } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-  const [isNavigationReady, setIsNavigationReady] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [bootError, setBootError] = useState<BootError | null>(null);
-
 
   const performBoot = async () => {
     setIsBooting(true);
@@ -65,24 +52,6 @@ function RootLayoutNav() {
       
       if (!result.success && result.error) {
         setBootError(result.error);
-        
-        switch (result.error.code) {
-          case 'BOOT_TIMEOUT':
-            logBootTimeout(result.step || 'unknown', result.error.originalError);
-            break;
-          case 'DB_HEALTH':
-            logDBHealthError(result.error.originalError);
-            break;
-          case 'RLS_AUTH':
-            logRLSError('boot', 'initialization', result.error.originalError);
-            break;
-          case 'I18N_INIT':
-            logI18nError(result.error.originalError);
-            break;
-          case 'CONFIG_ERROR':
-            logConfigError(result.error.originalError);
-            break;
-        }
       }
     } catch (error: any) {
       console.error('❌ Unexpected boot error:', error);
@@ -98,24 +67,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     performBoot();
-    setIsNavigationReady(true);
   }, []);
-
-  useEffect(() => {
-    if (isLoading || !isNavigationReady || isBooting) return;
-    if (bootError) return;
-
-    const inAuth = segments[0] === 'auth';
-    const inOnboarding = segments[0] === 'onboarding';
-
-    if (!isAuthenticated && !inAuth) {
-      router.replace('/auth/login');
-    } else if (isAuthenticated && !isOnboarded && !inOnboarding) {
-      router.replace('/onboarding');
-    } else if (isAuthenticated && isOnboarded && (inAuth || inOnboarding)) {
-      router.replace('/(tabs)');
-    }
-  }, [isLoading, isAuthenticated, isOnboarded, segments, router, isNavigationReady, isBooting, bootError]);
 
   if (bootError) {
     return <BootErrorScreen error={bootError} onRetry={performBoot} />;
@@ -123,7 +75,7 @@ function RootLayoutNav() {
 
   return (
     <>
-      {(isLoading || isBooting) && (
+      {isBooting && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.colors.primary} />
         </View>
