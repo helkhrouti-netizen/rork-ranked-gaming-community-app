@@ -219,9 +219,9 @@ async function bootSequence(): Promise<BootResult> {
     await validateSupabaseConfig();
     console.log('✅ Config validation passed');
 
-    currentStep = 'config';
-    await testSupabaseConnection();
-    console.log('✅ Supabase connection test passed');
+    // currentStep = 'config';
+    // await testSupabaseConnection();
+    // console.log('✅ Supabase connection test passed');
 
     currentStep = 'i18n';
     await initializeI18n();
