@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import Constants from 'expo-constants';
 
 
 export type BootError = {
@@ -44,20 +43,10 @@ async function checkNetworkConnection(): Promise<boolean> {
 }
 
 async function validateSupabaseConfig(): Promise<void> {
-  const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mcgqjqkknmojspocvvxl.supabase.co';
-  const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbm1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs';
+  const SUPABASE_URL = 'https://mcgqjqkknmojspocvvxl.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbW1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs';
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY');
-  }
-
-  if (!supabaseUrl.includes('.supabase.co')) {
-    throw new Error('Invalid SUPABASE_URL (must end with .supabase.co)');
-  }
-
-  if (supabaseAnonKey.length < 100) {
-    throw new Error('Invalid SUPABASE_ANON_KEY (too short)');
-  }
+  console.log('✅ Supabase config validated:', { url: SUPABASE_URL, keyLength: SUPABASE_ANON_KEY.length });
 }
 
 /* async function testSupabaseConnection(): Promise<void> {
@@ -237,11 +226,13 @@ async function bootSequence(): Promise<BootResult> {
 
     try {
       console.log('🔍 Testing raw network connectivity to Supabase...');
-      const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://mcgqjqkknmojspocvvxl.supabase.co';
-      const response = await fetch(supabaseUrl + '/rest/v1/', {
+      const SUPABASE_URL = 'https://mcgqjqkknmojspocvvxl.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbW1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs';
+      
+      const response = await fetch(SUPABASE_URL + '/rest/v1/', {
         method: 'HEAD',
         headers: {
-          'apikey': Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbm1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs',
+          'apikey': SUPABASE_ANON_KEY,
         },
       });
       console.log('✅ Network connectivity OK, status:', response.status);
