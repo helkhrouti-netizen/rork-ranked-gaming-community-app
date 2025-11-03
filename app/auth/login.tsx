@@ -184,6 +184,16 @@ export default function LoginScreen() {
                 <Text style={styles.signupButtonTextBold}>{t.auth.signup}</Text>
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={() => router.push('/test-supabase' as any)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.testButtonText}>
+                🧪 RUN SUPABASE TESTS
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -323,5 +333,19 @@ const styles = StyleSheet.create({
   signupButtonTextBold: {
     fontWeight: '700' as const,
     color: Colors.colors.primary,
+  },
+  testButton: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: Colors.colors.warning + '30',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.colors.warning,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.colors.warning,
   },
 });
