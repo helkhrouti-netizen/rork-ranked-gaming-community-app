@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, View, ActivityIndicator, LogBox, Text, TouchableOpacity } from "react-native";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import Colors from "@/constants/colors";
 import { trpc } from "@/lib/trpc";
@@ -42,6 +42,9 @@ function BootErrorScreen({ error, onRetry }: { error: BootError; onRetry: () => 
 function RootLayoutNav() {
   const [isBooting, setIsBooting] = useState(true);
   const [bootError, setBootError] = useState<BootError | null>(null);
+  const { isAuthenticated, isOnboarded, isLoading: authLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
 
   const performBoot = async () => {
     setIsBooting(true);
@@ -69,15 +72,44 @@ function RootLayoutNav() {
     performBoot();
   }, []);
 
+  useEffect(() => {
+    if (isBooting || authLoading || bootError) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'onboarding';
+    const inTabs = segments[0] === '(tabs)';
+
+    console.log('🔐 Navigation check:', {
+      isAuthenticated,
+      isOnboarded,
+      currentSegment: segments[0],
+      inAuthGroup,
+      inOnboarding,
+      inTabs
+    });
+
+    if (!isAuthenticated && !inAuthGroup) {
+      console.log('➡️ Redirecting to login');
+      router.replace('/auth/login');
+    } else if (isAuthenticated && !isOnboarded && !inOnboarding) {
+      console.log('➡️ Redirecting to onboarding');
+      router.replace('/onboarding');
+    } else if (isAuthenticated && isOnboarded && (inAuthGroup || inOnboarding)) {
+      console.log('➡️ Redirecting to main app');
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, isOnboarded, segments, isBooting, authLoading, bootError]);
+
   if (bootError) {
     return <BootErrorScreen error={bootError} onRetry={performBoot} />;
   }
 
   return (
     <>
-      {isBooting && (
+      {(isBooting || authLoading) && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.colors.primary} />
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       )}
       <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -160,6 +192,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.colors.background,
     zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
   },
   errorContainer: {
     ...StyleSheet.absoluteFillObject,

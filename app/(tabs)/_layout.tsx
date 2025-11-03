@@ -3,8 +3,13 @@ import { Swords, Trophy, User, Calendar } from "lucide-react-native";
 import React from "react";
 
 import Colors from "@/constants/colors";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getTranslation } from "@/constants/translations";
 
 export default function TabLayout() {
+  const { language } = useLanguage();
+  const t = getTranslation(language);
+
   return (
     <Tabs
       screenOptions={{
@@ -25,28 +30,28 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Play",
+          title: t.tabs.home,
           tabBarIcon: ({ color, size }) => <Swords color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
-          title: "Leaderboard",
+          title: t.tabs.leaderboard,
           tabBarIcon: ({ color, size }) => <Trophy color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="tournaments"
         options={{
-          title: "Tournaments",
+          title: t.tabs.tournaments,
           tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t.tabs.profile,
           tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />

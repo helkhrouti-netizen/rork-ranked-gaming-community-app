@@ -15,11 +15,15 @@ import Colors from '@/constants/colors';
 import { formatRank, RANK_INFO, RankDivision, RankLevel } from '@/constants/ranks';
 import { Player } from '@/types';
 import { mockDataProvider } from '@/lib/mockData';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getTranslation } from '@/constants/translations';
 
 type FilterOption = RankDivision | 'all' | `${RankDivision}-${RankLevel}`;
 
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
+  const { language } = useLanguage();
+  const t = getTranslation(language);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all');
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -70,9 +74,9 @@ export default function LeaderboardScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerContent}>
           <Trophy color={Colors.colors.primary} size={32} strokeWidth={2.5} />
-          <Text style={styles.headerTitle}>Leaderboard</Text>
+          <Text style={styles.headerTitle}>{t.leaderboard.leaderboard}</Text>
         </View>
-        <Text style={styles.headerSubtitle}>Compete with the best players</Text>
+        <Text style={styles.headerSubtitle}>{t.leaderboard.competeWithBest}</Text>
       </View>
 
       <View>
@@ -95,7 +99,7 @@ export default function LeaderboardScreen() {
                 selectedFilter === 'all' && styles.filterButtonTextActive,
               ]}
             >
-              All Ranks
+              {t.leaderboard.allRanks}
             </Text>
           </TouchableOpacity>
           {divisions.map((division) => (
@@ -146,7 +150,7 @@ export default function LeaderboardScreen() {
                       selectedFilter === subFilter && styles.subFilterButtonTextActive,
                     ]}
                   >
-                    Level {level}
+                    {t.leaderboard.level} {level}
                   </Text>
                 </TouchableOpacity>
               );
@@ -163,26 +167,26 @@ export default function LeaderboardScreen() {
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={Colors.colors.primary} size="large" />
-            <Text style={styles.loadingText}>Loading leaderboard...</Text>
+            <Text style={styles.loadingText}>{t.leaderboard.loadingLeaderboard}</Text>
           </View>
         ) : filteredPlayers.length > 0 ? (
           <>
             {filteredPlayers.slice(0, 3).map((player, index) => (
-              <TopPlayerCard key={player.id} player={player} position={index + 1} />
+              <TopPlayerCard key={player.id} player={player} position={index + 1} t={t} />
             ))}
             
             {filteredPlayers.length > 3 && (
               <View style={styles.restSection}>
                 {filteredPlayers.slice(3).map((player, index) => (
-                  <PlayerRow key={player.id} player={player} position={index + 4} />
+                  <PlayerRow key={player.id} player={player} position={index + 4} t={t} />
                 ))}
               </View>
             )}
           </>
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No players found</Text>
-            <Text style={styles.emptyStateSubtext}>Try selecting a different rank</Text>
+            <Text style={styles.emptyStateText}>{t.leaderboard.noPlayersFound}</Text>
+            <Text style={styles.emptyStateSubtext}>{t.leaderboard.tryDifferentRank}</Text>
           </View>
         )}
       </ScrollView>
@@ -190,7 +194,7 @@ export default function LeaderboardScreen() {
   );
 }
 
-function TopPlayerCard({ player, position }: { player: Player; position: number }) {
+function TopPlayerCard({ player, position, t }: { player: Player; position: number; t: ReturnType<typeof getTranslation> }) {
   const rankInfo = RANK_INFO[player.rank.division];
   const winRate = ((player.wins / (player.wins + player.losses)) * 100).toFixed(0);
   
@@ -224,15 +228,15 @@ function TopPlayerCard({ player, position }: { player: Player; position: number 
 
         <View style={styles.topPlayerStats}>
           <View style={styles.topPlayerStat}>
-            <Text style={styles.topPlayerStatLabel}>RP</Text>
+            <Text style={styles.topPlayerStatLabel}>{t.home.rp}</Text>
             <Text style={styles.topPlayerStatValue}>{player.rank.points}</Text>
           </View>
           <View style={styles.topPlayerStat}>
-            <Text style={styles.topPlayerStatLabel}>Win Rate</Text>
+            <Text style={styles.topPlayerStatLabel}>{t.profile.winRate}</Text>
             <Text style={styles.topPlayerStatValue}>{winRate}%</Text>
           </View>
           <View style={styles.topPlayerStat}>
-            <Text style={styles.topPlayerStatLabel}>Matches</Text>
+            <Text style={styles.topPlayerStatLabel}>{t.leaderboard.matches}</Text>
             <Text style={styles.topPlayerStatValue}>{player.wins + player.losses}</Text>
           </View>
         </View>
@@ -241,7 +245,7 @@ function TopPlayerCard({ player, position }: { player: Player; position: number 
   );
 }
 
-function PlayerRow({ player, position }: { player: Player; position: number }) {
+function PlayerRow({ player, position, t }: { player: Player; position: number; t: ReturnType<typeof getTranslation> }) {
   const rankInfo = RANK_INFO[player.rank.division];
   const winRate = ((player.wins / (player.wins + player.losses)) * 100).toFixed(0);
 
@@ -263,8 +267,8 @@ function PlayerRow({ player, position }: { player: Player; position: number }) {
         </View>
       </View>
       <View style={styles.playerRowRight}>
-        <Text style={styles.playerRowPoints}>{player.rank.points} RP</Text>
-        <Text style={styles.playerRowWinRate}>{winRate}% WR</Text>
+        <Text style={styles.playerRowPoints}>{player.rank.points} {t.home.rp}</Text>
+        <Text style={styles.playerRowWinRate}>{winRate}% {t.leaderboard.wr}</Text>
       </View>
     </View>
   );

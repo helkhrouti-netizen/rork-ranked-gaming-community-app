@@ -116,35 +116,44 @@ export default function PlayScreen() {
 
   const handleQuickMatch = async () => {
     if (!user) {
-      console.log('User must be logged in to quick match');
+      console.log('❌ User must be logged in to quick match');
+      setErrorMessage('You must be logged in to use Quick Match');
       return;
     }
+
+    console.log('🎮 Starting Quick Match for user:', user.username, 'with ID:', user.id);
 
     try {
       setIsQuickMatchLoading(true);
       setErrorMessage('');
 
+      console.log('🔍 Checking if user is in active match...');
       const isInMatch = await mockDataProvider.isUserInActiveMatch(user.id);
       
       if (isInMatch) {
+        console.log('⚠️ User already in a match');
         const allMatches = await mockDataProvider.getAllMatches();
         const userMatch = allMatches.find(
           (m) => (m.status === 'waiting' || m.status === 'in_progress') && m.playerIds.includes(user.id)
         );
         
         if (userMatch) {
-          console.log('User already in an active match, navigating to it');
+          console.log('➡️ Navigating to existing match:', userMatch.id);
           router.push(`/match/${userMatch.id}`);
           return;
         }
       }
 
+      console.log('🔍 Looking for open match with tier:', user.level_tier);
       const openMatch = user.level_tier ? await mockDataProvider.findOpenMatch(user.level_tier, user.id) : null;
 
       if (openMatch) {
+        console.log('✅ Found open match:', openMatch.id);
         await mockDataProvider.joinMatch(openMatch.id, user.id);
+        console.log('➡️ Navigating to match:', openMatch.id);
         router.push(`/match/${openMatch.id}`);
       } else {
+        console.log('🎮 Creating new match...');
         const newMatch = await mockDataProvider.createMatch(user.id, {
           type: 'official',
           status: 'waiting',
@@ -155,16 +164,27 @@ export default function PlayScreen() {
           hostPosition: 'top-left',
         });
 
+        console.log('✅ Match created:', newMatch.id);
+        console.log('➡️ Navigating to new match:', newMatch.id);
+        
         if (router && typeof router.push === 'function') {
           router.push(`/match/${newMatch.id}`);
         } else {
-          console.error('❌ Router is undefined or push method is missing in quick match');
+          console.error('❌ Router is undefined or push method is missing');
+          throw new Error('Navigation failed: Router not available');
         }
       }
 
+      console.log('🔄 Reloading matches list...');
       await loadMatches();
+      console.log('✅ Quick Match completed successfully');
     } catch (error: any) {
-      console.error('Quick match error:', error);
+      console.error('❌ Quick match error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
       setErrorMessage(error?.message || 'Failed to join/create match. Please try again.');
     } finally {
       setIsQuickMatchLoading(false);
