@@ -22,7 +22,29 @@ export default function TestSupabaseScreen() {
     setIsRunning(true);
     setResults([]);
 
-    addResult({ name: 'Network Test', status: 'pending', message: 'Testing network connectivity...' });
+    addResult({ name: 'Basic Internet Test', status: 'pending', message: 'Testing basic connectivity...' });
+
+    try {
+      const response = await fetch('https://www.google.com', {
+        method: 'HEAD',
+      });
+      
+      addResult({
+        name: 'Basic Internet Test',
+        status: 'success',
+        message: `Internet OK (Status: ${response.status})`,
+        details: { status: response.status }
+      });
+    } catch (error: any) {
+      addResult({
+        name: 'Basic Internet Test',
+        status: 'error',
+        message: `No internet: ${error.message}`,
+        details: { error: error.message, type: error.name }
+      });
+    }
+
+    addResult({ name: 'Supabase Network Test', status: 'pending', message: 'Testing Supabase connectivity...' });
 
     try {
       const response = await fetch('https://mcgqjqkknmojspocvvxl.supabase.co/rest/v1/', {
@@ -33,20 +55,20 @@ export default function TestSupabaseScreen() {
       });
       
       addResult({
-        name: 'Network Test',
+        name: 'Supabase Network Test',
         status: 'success',
-        message: `Network OK (Status: ${response.status})`,
+        message: `Supabase reachable (Status: ${response.status})`,
         details: { status: response.status, statusText: response.statusText }
       });
     } catch (error: any) {
       addResult({
-        name: 'Network Test',
+        name: 'Supabase Network Test',
         status: 'error',
-        message: `Network failed: ${error.message}`,
+        message: `Cannot reach Supabase: ${error.message}`,
         details: {
           error: error.message,
           type: error.name,
-          description: 'Cannot reach Supabase server. Check network connection or firewall settings.'
+          description: 'Cannot reach Supabase server. This may be a firewall or network issue.'
         }
       });
     }
@@ -122,6 +144,33 @@ export default function TestSupabaseScreen() {
       });
     }
 
+    addResult({ name: 'Direct Auth API Test', status: 'pending', message: 'Testing auth endpoint directly...' });
+
+    try {
+      const testResponse = await fetch('https://mcgqjqkknmojspocvvxl.supabase.co/auth/v1/health', {
+        method: 'GET',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbm1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs'
+        }
+      });
+      
+      const healthData = await testResponse.json();
+      
+      addResult({
+        name: 'Direct Auth API Test',
+        status: 'success',
+        message: `Auth API is healthy`,
+        details: healthData
+      });
+    } catch (error: any) {
+      addResult({
+        name: 'Direct Auth API Test',
+        status: 'error',
+        message: `Auth API test failed: ${error.message}`,
+        details: error
+      });
+    }
+
     addResult({ name: 'Test Signup', status: 'pending', message: 'Testing signup...' });
 
     try {
@@ -147,6 +196,16 @@ export default function TestSupabaseScreen() {
             details: {
               error: error.message,
               solution: 'Go to Supabase Dashboard > Authentication > Settings and configure email provider'
+            }
+          });
+        } else if (error.message.includes('Network request failed')) {
+          addResult({
+            name: 'Test Signup',
+            status: 'error',
+            message: '❌ NETWORK ERROR - Cannot connect to Supabase',
+            details: {
+              error: error.message,
+              solution: 'This could be a firewall, VPN, or network configuration issue. Try connecting from a different network.'
             }
           });
         } else {

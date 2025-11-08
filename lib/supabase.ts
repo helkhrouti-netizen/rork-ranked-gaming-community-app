@@ -14,6 +14,47 @@ const storageAdapter = Platform.OS === 'web'
   ? undefined
   : AsyncStorage;
 
+const customFetch: typeof fetch = async (input, init?) => {
+  const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
+  const options = typeof input === 'string' ? init : { ...init };
+  
+  console.log('🌐 Making request to:', url);
+  console.log('📦 Request method:', options?.method || 'GET');
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log('✅ Response received:', response.status, response.statusText);
+    return response;
+  } catch (error: any) {
+    console.error('❌ Fetch failed:', {
+      url,
+      error: error.message,
+      name: error.name,
+      code: error.code,
+    });
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - please check your internet connection');
+    }
+    
+    throw error;
+  }
+};
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: storageAdapter,
@@ -26,20 +67,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     headers: {
       'X-Client-Info': 'padel-app',
     },
-    fetch: (url, options = {}) => {
-      console.log('🌐 Supabase fetch:', url);
-      return fetch(url, {
-        ...options,
-        headers: {
-          ...options.headers,
-        },
-      }).catch((error) => {
-        console.error('❌ Fetch error:', error.message);
-        console.error('URL:', url);
-        console.error('Options:', JSON.stringify(options, null, 2));
-        throw error;
-      });
-    },
+    fetch: customFetch,
   },
   db: {
     schema: 'public',
