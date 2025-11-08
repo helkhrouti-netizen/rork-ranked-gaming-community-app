@@ -91,24 +91,8 @@ export default function SignupScreen() {
       console.log('✅ Sign up successful, profile created in database');
       router.replace('/onboarding');
     } catch (err: any) {
-      let userMessage = err.message || 'Failed to create account. Please try again.';
-      
-      console.error('❌ Signup error:', err);
-      console.error('Error type:', typeof err);
-      console.error('Error keys:', err ? Object.keys(err) : 'null');
-      console.error('Error message:', err?.message);
-      console.error('Error name:', err?.name);
-      console.error('Error stack:', err?.stack);
-      console.error('Full error:', JSON.stringify(err, null, 2));
-      
-      if (err.message && err.message.includes('Network request failed')) {
-        userMessage = 'Cannot connect to server. Check your internet connection and try again.';
-      } else if (err.message && err.message.includes('Invalid API key')) {
-        userMessage = 'Server configuration error. Please contact support.';
-      } else if (err.message && err.message.includes('fetch')) {
-        userMessage = 'Network error. Please check your connection.';
-      }
-      
+      const userMessage = err.message || 'Failed to create account. Please try again.';
+      console.error('❌ Signup error:', userMessage);
       setError(userMessage);
     } finally {
       setIsLoading(false);

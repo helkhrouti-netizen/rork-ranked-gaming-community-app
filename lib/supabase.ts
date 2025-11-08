@@ -18,8 +18,7 @@ const customFetch: typeof fetch = async (input, init?) => {
   const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
   const options = typeof input === 'string' ? init : { ...init };
   
-  console.log('🌐 Making request to:', url);
-  console.log('📦 Request method:', options?.method || 'GET');
+  console.log('🌐 Supabase request:', options?.method || 'GET', url.includes('auth/v1') ? 'auth' : 'api');
   
   try {
     const controller = new AbortController();
@@ -36,19 +35,17 @@ const customFetch: typeof fetch = async (input, init?) => {
     });
     
     clearTimeout(timeoutId);
-    
-    console.log('✅ Response received:', response.status, response.statusText);
+    console.log('✅ Supabase response:', response.status);
     return response;
   } catch (error: any) {
-    console.error('❌ Fetch failed:', {
-      url,
-      error: error.message,
-      name: error.name,
-      code: error.code,
-    });
+    console.error('❌ Supabase network error:', error.message || 'Unknown error');
     
     if (error.name === 'AbortError') {
       throw new Error('Request timeout - please check your internet connection');
+    }
+    
+    if (error.message && error.message.includes('Network request failed')) {
+      throw new Error('Unable to connect to the server. Please check your internet connection.');
     }
     
     throw error;

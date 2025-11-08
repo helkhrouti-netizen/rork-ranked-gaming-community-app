@@ -70,7 +70,7 @@ export default function ProfileScreen() {
     rank: { division: userRank.division, level: userRank.level, points: user.level_score },
     wins: 0,
     losses: 0,
-    profilePicture: '',
+    profilePicture: null as string | null,
     reputation: 5.0,
   };
   const nextRankPoints = getNextRankPoints(player.rank.points);
@@ -106,13 +106,14 @@ export default function ProfileScreen() {
           >
             <View style={styles.profileHeader}>
               <View style={styles.profileAvatar}>
-                {player.profilePicture && player.profilePicture.trim() !== '' ? (
+                {player.profilePicture && player.profilePicture.trim().length > 0 ? (
                   <Image 
                     source={{ uri: player.profilePicture }}
                     style={styles.profileAvatarImage}
+                    resizeMode="cover"
                   />
                 ) : (
-                  <Text style={styles.profileAvatarText}>{player.username[0]}</Text>
+                  <Text style={styles.profileAvatarText}>{player.username[0]?.toUpperCase() || '?'}</Text>
                 )}
               </View>
               <View style={styles.profileInfo}>

@@ -168,11 +168,17 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('📥 Signup response received');
       
       if (signUpError) {
-        console.error('❌ Supabase signup error:', signUpError);
-        console.error('Error message:', signUpError.message);
-        console.error('Error status:', signUpError.status);
-        console.error('Error name:', signUpError.name);
-        throw signUpError;
+        console.error('❌ Supabase signup error:', signUpError.message);
+        
+        if (signUpError.message.includes('Network') || signUpError.message.includes('fetch')) {
+          throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+        }
+        
+        if (signUpError.message.includes('Invalid API')) {
+          throw new Error('Server configuration error. Please contact support.');
+        }
+        
+        throw new Error(signUpError.message || 'Failed to create account');
       }
       
       if (!authData.user) {
