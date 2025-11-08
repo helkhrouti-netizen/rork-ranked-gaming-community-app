@@ -168,11 +168,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('📥 Signup response received');
       
       if (signUpError) {
-        console.error('❌ Supabase signup error:', {
-          message: signUpError.message,
-          status: signUpError.status,
-          name: signUpError.name,
-        });
+        console.error('❌ Supabase signup error:', signUpError);
+        console.error('Error message:', signUpError.message);
+        console.error('Error status:', signUpError.status);
+        console.error('Error name:', signUpError.name);
         throw signUpError;
       }
       
