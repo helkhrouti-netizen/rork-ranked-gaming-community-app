@@ -73,32 +73,20 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    if (isBooting || authLoading || bootError) return;
+    if (isBooting || bootError) return;
 
-    const inAuthGroup = segments[0] === 'auth';
-    const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
 
-    console.log('🔐 Navigation check:', {
-      isAuthenticated,
-      isOnboarded,
+    console.log('🔐 Navigation check (AUTH DISABLED):', {
       currentSegment: segments[0],
-      inAuthGroup,
-      inOnboarding,
       inTabs
     });
 
-    if (!isAuthenticated && !inAuthGroup) {
-      console.log('➡️ Redirecting to login');
-      router.replace('/auth/login');
-    } else if (isAuthenticated && !isOnboarded && !inOnboarding) {
-      console.log('➡️ Redirecting to onboarding');
-      router.replace('/onboarding');
-    } else if (isAuthenticated && isOnboarded && (inAuthGroup || inOnboarding)) {
-      console.log('➡️ Redirecting to main app');
+    if (!inTabs && segments[0] !== 'match' && segments[0] !== 'tournament' && segments[0] !== 'settings' && segments[0] !== 'test-supabase') {
+      console.log('➡️ Redirecting to main app (tabs)');
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isOnboarded, segments, isBooting, authLoading, bootError]);
+  }, [segments, isBooting, bootError]);
 
   if (bootError) {
     return <BootErrorScreen error={bootError} onRetry={performBoot} />;
