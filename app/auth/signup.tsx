@@ -91,8 +91,21 @@ export default function SignupScreen() {
       console.log('✅ Sign up successful, profile created in database');
       router.replace('/onboarding');
     } catch (err: any) {
-      setError(err.message || 'Failed to create account. Please try again.');
+      let userMessage = err.message || 'Failed to create account. Please try again.';
+      
+      if (err.message && err.message.includes('Network request failed')) {
+        userMessage = 'Network error: Cannot connect to server. Please check your internet connection or try the test button below.';
+      } else if (err.message && err.message.includes('Invalid API key')) {
+        userMessage = 'Server configuration error. Please contact support.';
+      }
+      
+      setError(userMessage);
       console.error('Signup error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        name: err.name,
+        stack: err.stack
+      });
     } finally {
       setIsLoading(false);
     }
@@ -275,6 +288,18 @@ export default function SignupScreen() {
                 <Text style={styles.loginButtonTextBold}>{t.auth.login}</Text>
               </Text>
             </TouchableOpacity>
+
+            {error && error.includes('Network error') && (
+              <TouchableOpacity
+                style={styles.testButton}
+                onPress={() => router.push('/test-supabase' as any)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.testButtonText}>
+                  🧪 RUN CONNECTION TEST
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -414,5 +439,19 @@ const styles = StyleSheet.create({
   loginButtonTextBold: {
     fontWeight: '700' as const,
     color: Colors.colors.primary,
+  },
+  testButton: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: Colors.colors.warning + '30',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.colors.warning,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.colors.warning,
   },
 });

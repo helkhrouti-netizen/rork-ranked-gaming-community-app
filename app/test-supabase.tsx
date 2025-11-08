@@ -22,6 +22,35 @@ export default function TestSupabaseScreen() {
     setIsRunning(true);
     setResults([]);
 
+    addResult({ name: 'Network Test', status: 'pending', message: 'Testing network connectivity...' });
+
+    try {
+      const response = await fetch('https://mcgqjqkknmojspocvvxl.supabase.co/rest/v1/', {
+        method: 'HEAD',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jZ3FqcWtrbm1vanNwb2N2dnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNDcyODYsImV4cCI6MjA3NjYyMzI4Nn0.8w6XKdRnusmh_DtrWHwxRlFV0LwNuC1ezxmsA-mHqVs'
+        }
+      });
+      
+      addResult({
+        name: 'Network Test',
+        status: 'success',
+        message: `Network OK (Status: ${response.status})`,
+        details: { status: response.status, statusText: response.statusText }
+      });
+    } catch (error: any) {
+      addResult({
+        name: 'Network Test',
+        status: 'error',
+        message: `Network failed: ${error.message}`,
+        details: {
+          error: error.message,
+          type: error.name,
+          description: 'Cannot reach Supabase server. Check network connection or firewall settings.'
+        }
+      });
+    }
+
     addResult({ name: 'Connection Test', status: 'pending', message: 'Starting...' });
 
     try {

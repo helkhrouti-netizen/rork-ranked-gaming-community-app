@@ -149,7 +149,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     phoneNumber?: string
   ) => {
     try {
-      console.log('🔧 Signup with Supabase');
+      console.log('🔧 Starting signup with Supabase');
+      console.log('📧 Email:', email);
+      console.log('👤 Username:', username);
+      console.log('📞 Phone:', phoneNumber || 'none');
       
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -162,8 +165,21 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         },
       });
 
-      if (signUpError) throw signUpError;
-      if (!authData.user) throw new Error('Failed to create user');
+      console.log('📥 Signup response received');
+      
+      if (signUpError) {
+        console.error('❌ Supabase signup error:', {
+          message: signUpError.message,
+          status: signUpError.status,
+          name: signUpError.name,
+        });
+        throw signUpError;
+      }
+      
+      if (!authData.user) {
+        console.error('❌ No user data returned from signup');
+        throw new Error('Failed to create user');
+      }
 
       const { error: profileError } = await supabase
         .from('profiles')
