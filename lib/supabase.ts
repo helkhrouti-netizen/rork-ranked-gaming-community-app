@@ -24,7 +24,7 @@ const customFetch: typeof fetch = async (input, init?) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     
-    const response = await fetch(url, {
+    const response = await globalThis.fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
