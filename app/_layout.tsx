@@ -79,19 +79,27 @@ function RootLayoutNav() {
     const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
 
-    console.log('🔐 Navigation check (AUTH DISABLED):', {
+    console.log('🔐 Navigation check:', {
       currentSegment: segments[0],
+      isAuthenticated,
+      isOnboarded,
+      authLoading,
       inAuth,
       inOnboarding,
       inTabs
     });
 
-    // BYPASS AUTH: Always redirect to tabs if user is on auth/onboarding screens
-    if (inAuth || inOnboarding) {
-      console.log('➡️ Bypassing auth, redirecting to home');
+    if (!isAuthenticated && !inAuth) {
+      console.log('➡️ Not authenticated, redirecting to login');
+      router.replace('/auth/login');
+    } else if (isAuthenticated && !isOnboarded && !inOnboarding) {
+      console.log('➡️ Not onboarded, redirecting to onboarding');
+      router.replace('/onboarding');
+    } else if (isAuthenticated && isOnboarded && (inAuth || inOnboarding)) {
+      console.log('➡️ Already authenticated and onboarded, redirecting to home');
       router.replace('/(tabs)');
     }
-  }, [segments, isBooting, bootError, router]);
+  }, [segments, isBooting, bootError, authLoading, isAuthenticated, isOnboarded, router]);
 
   if (bootError) {
     return <BootErrorScreen error={bootError} onRetry={performBoot} />;
