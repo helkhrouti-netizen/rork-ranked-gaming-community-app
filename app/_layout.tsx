@@ -73,42 +73,25 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    if (isBooting || authLoading || bootError) return;
+    if (isBooting || bootError) return;
 
     const inAuth = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
-    const inMatch = segments[0] === 'match';
-    const inTournament = segments[0] === 'tournament';
-    const inSettings = segments[0] === 'settings';
-    const inTest = segments[0] === 'test-supabase';
 
-    console.log('🔐 Navigation check:', {
-      isAuthenticated,
-      isOnboarded,
+    console.log('🔐 Navigation check (AUTH DISABLED):', {
       currentSegment: segments[0],
       inAuth,
       inOnboarding,
       inTabs
     });
 
-    if (!isAuthenticated) {
-      if (!inAuth && !inTest) {
-        console.log('➡️ Not authenticated, redirecting to login');
-        router.replace('/auth/login');
-      }
-    } else if (!isOnboarded) {
-      if (!inOnboarding && !inTest) {
-        console.log('➡️ Not onboarded, redirecting to onboarding');
-        router.replace('/onboarding');
-      }
-    } else {
-      if (inAuth || inOnboarding) {
-        console.log('➡️ Already authenticated and onboarded, redirecting to home');
-        router.replace('/(tabs)');
-      }
+    // BYPASS AUTH: Always redirect to tabs if user is on auth/onboarding screens
+    if (inAuth || inOnboarding) {
+      console.log('➡️ Bypassing auth, redirecting to home');
+      router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isOnboarded, segments, isBooting, authLoading, bootError, router]);
+  }, [segments, isBooting, bootError, router]);
 
   if (bootError) {
     return <BootErrorScreen error={bootError} onRetry={performBoot} />;
