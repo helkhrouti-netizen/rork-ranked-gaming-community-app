@@ -73,20 +73,42 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    if (isBooting || bootError) return;
+    if (isBooting || authLoading || bootError) return;
 
+    const inAuth = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
+    const inMatch = segments[0] === 'match';
+    const inTournament = segments[0] === 'tournament';
+    const inSettings = segments[0] === 'settings';
+    const inTest = segments[0] === 'test-supabase';
 
-    console.log('🔐 Navigation check (AUTH DISABLED):', {
+    console.log('🔐 Navigation check:', {
+      isAuthenticated,
+      isOnboarded,
       currentSegment: segments[0],
+      inAuth,
+      inOnboarding,
       inTabs
     });
 
-    if (!inTabs && segments[0] !== 'match' && segments[0] !== 'tournament' && segments[0] !== 'settings' && segments[0] !== 'test-supabase') {
-      console.log('➡️ Redirecting to main app (tabs)');
-      router.replace('/(tabs)');
+    if (!isAuthenticated) {
+      if (!inAuth && !inTest) {
+        console.log('➡️ Not authenticated, redirecting to login');
+        router.replace('/auth/login');
+      }
+    } else if (!isOnboarded) {
+      if (!inOnboarding && !inTest) {
+        console.log('➡️ Not onboarded, redirecting to onboarding');
+        router.replace('/onboarding');
+      }
+    } else {
+      if (inAuth || inOnboarding) {
+        console.log('➡️ Already authenticated and onboarded, redirecting to home');
+        router.replace('/(tabs)');
+      }
     }
-  }, [segments, isBooting, bootError]);
+  }, [isAuthenticated, isOnboarded, segments, isBooting, authLoading, bootError, router]);
 
   if (bootError) {
     return <BootErrorScreen error={bootError} onRetry={performBoot} />;
