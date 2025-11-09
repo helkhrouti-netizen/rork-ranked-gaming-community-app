@@ -461,6 +461,14 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         console.log('🔖 Including username in update:', answers.username);
       }
       
+      if (answers.city) {
+        console.log('📍 Including city in update:', answers.city);
+      }
+      
+      if (answers.avatarUri) {
+        console.log('🖼️ Including avatar in update:', answers.avatarUri);
+      }
+      
       await updateProfile(profileUpdates);
       
       setIsOnboarded(true);
