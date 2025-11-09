@@ -23,7 +23,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, continueAsGuest } = useAuth();
   const { language } = useLanguage();
   const t = getTranslation(language);
 
@@ -57,6 +57,19 @@ export default function LoginScreen() {
     } catch (err: any) {
       setError(err.message || 'Failed to log in. Please check your credentials.');
       console.error('Login error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGuestMode = async () => {
+    setIsLoading(true);
+    try {
+      await continueAsGuest();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setError(err.message || 'Failed to continue as guest');
+      console.error('Guest mode error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -186,12 +199,14 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.testButton}
-              onPress={() => router.push('/test-supabase' as any)}
+              style={styles.guestButton}
+              onPress={handleGuestMode}
+              testID="continue-as-guest-button"
               activeOpacity={0.8}
+              disabled={isLoading}
             >
-              <Text style={styles.testButtonText}>
-                🧪 RUN SUPABASE TESTS
+              <Text style={styles.guestButtonText}>
+                👤 Continue as Guest
               </Text>
             </TouchableOpacity>
           </View>
@@ -347,5 +362,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: Colors.colors.warning,
+  },
+  guestButton: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.colors.border,
+    alignItems: 'center',
+  },
+  guestButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
   },
 });

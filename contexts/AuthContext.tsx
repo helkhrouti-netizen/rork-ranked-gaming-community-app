@@ -13,6 +13,7 @@ export interface AuthUser {
   username: string;
   level_score: number;
   level_tier: string;
+  isGuest?: boolean;
 }
 
 const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
@@ -20,6 +21,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
 
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
@@ -67,6 +69,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       setSession(null);
       setUser(null);
       setIsOnboarded(false);
+      setIsGuest(false);
       console.log('🗑️ Auth cleared');
     } catch (error) {
       console.error('Failed to clear auth:', error);
@@ -250,14 +253,37 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
 
   const logout = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      if (!isGuest) {
+        await supabase.auth.signOut();
+      }
       await clearAuth();
       console.log('✅ Logged out');
     } catch (error) {
       console.error('Logout error:', error);
       await clearAuth();
     }
-  }, [clearAuth]);
+  }, [clearAuth, isGuest]);
+
+  const continueAsGuest = useCallback(async () => {
+    try {
+      console.log('👤 Continuing as guest');
+      const guestUser: AuthUser = {
+        id: 'guest-' + Date.now(),
+        email: 'guest@padelmatch.local',
+        username: 'Guest',
+        level_score: 500,
+        level_tier: 'Gold',
+        isGuest: true,
+      };
+      setUser(guestUser);
+      setIsOnboarded(true);
+      setIsGuest(true);
+      console.log('✅ Guest mode activated');
+    } catch (error) {
+      console.error('Guest mode error:', error);
+      throw error;
+    }
+  }, []);
 
   const refreshProfile = useCallback(async () => {
     if (!session || !user) {
@@ -414,16 +440,18 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       session,
       user,
       isLoading,
-      isAuthenticated: !!session && !!user,
+      isAuthenticated: !!user,
       isOnboarded,
+      isGuest,
       signup,
       login,
       logout,
+      continueAsGuest,
       refreshProfile,
       updateProfile,
       assessRanking,
     }),
-    [session, user, isLoading, isOnboarded, signup, login, logout, refreshProfile, updateProfile, assessRanking]
+    [session, user, isLoading, isOnboarded, isGuest, signup, login, logout, continueAsGuest, refreshProfile, updateProfile, assessRanking]
   );
 });
 
