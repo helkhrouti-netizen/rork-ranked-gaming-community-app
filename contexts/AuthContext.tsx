@@ -23,12 +23,12 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
   const [isGuest, setIsGuest] = useState<boolean>(false);
 
-  const loadUserProfile = useCallback(async (userId: string) => {
+  const loadUserProfile = useCallback(async (userId: string): Promise<AuthUser | null> => {
     try {
       console.log('🔍 Loading user profile for ID:', userId);
       
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile load timeout')), 10000);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile load timeout')), 5000);
       });
       
       const profilePromise = supabase
@@ -48,7 +48,8 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
           console.log('⚠️ Profile does not exist yet, will be created');
           return null;
         }
-        throw new Error(error.message || 'Failed to load user profile');
+        console.error('⚠️ Profile load error, returning null');
+        return null;
       }
 
       if (profile) {
@@ -77,7 +78,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       const errorMessage = error?.message || String(error);
       console.error('❌ Error loading user profile:', errorMessage);
       if (errorMessage.includes('timeout')) {
-        console.error('⏱️ Profile load timed out after 10s');
+        console.error('⏱️ Profile load timed out after 5s');
       }
       return null;
     }
@@ -99,8 +100,8 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     try {
       console.log('🔧 Loading auth session');
       
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Auth session timeout')), 10000);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Auth session timeout')), 5000);
       });
       
       const sessionPromise = supabase.auth.getSession();
@@ -111,20 +112,27 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       ]) as any;
 
       if (error) {
-        console.error('Session error:', error);
+        console.error('❌ Session error:', error);
         await clearAuth();
+        setIsLoading(false);
         return;
       }
 
       if (currentSession?.user) {
         setSession(currentSession);
-        await loadUserProfile(currentSession.user.id);
+        console.log('📱 Session found, loading profile...');
+        const profile = await loadUserProfile(currentSession.user.id);
+        if (!profile) {
+          console.log('⚠️ No profile loaded, user might need onboarding');
+        }
         console.log('✅ Auth session loaded successfully');
       } else {
+        console.log('ℹ️ No active session found');
         await clearAuth();
       }
     } catch (error: any) {
       console.error('❌ Failed to load auth:', error?.message || error);
+      console.log('⚠️ Auth failed, but app will continue (guest mode available)');
       await clearAuth();
     } finally {
       console.log('✅ Setting isLoading to false');
@@ -324,9 +332,11 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       setUser(guestUser);
       setIsOnboarded(true);
       setIsGuest(true);
+      setIsLoading(false);
       console.log('✅ Guest mode activated');
     } catch (error) {
       console.error('Guest mode error:', error);
+      setIsLoading(false);
       throw error;
     }
   }, []);
