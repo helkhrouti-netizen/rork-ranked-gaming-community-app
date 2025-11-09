@@ -35,7 +35,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         .from('public_profiles')
         .select('id, email, username, level_tier, rank_division, level_score, rank_points, wins, losses, reputation, city, phone_number, profile_picture')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       const { data: profile, error } = await Promise.race([
         profilePromise,
@@ -66,6 +66,8 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         });
         return authUser;
       }
+      
+      console.log('⚠️ No profile found, this is expected right after signup');
       return null;
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
@@ -221,7 +223,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
 
       console.log('📝 Inserting/updating profile with email and phone...');
       
-      const { error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: authData.user.id,
@@ -235,7 +237,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
           rank_sub: 1,
         }, {
           onConflict: 'id'
-        });
+        })
+        .select()
+        .single();
 
       if (profileError) {
         console.error('❌ Profile insert/update error:', profileError);
@@ -243,6 +247,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       }
       
       console.log('✅ Profile created with email:', authData.user.email);
+      console.log('📦 Profile data:', profileData);
 
       const authUser: AuthUser = {
         id: authData.user.id,
