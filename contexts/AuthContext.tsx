@@ -26,11 +26,21 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const loadUserProfile = useCallback(async (userId: string) => {
     try {
       console.log('🔍 Loading user profile for ID:', userId);
-      const { data: profile, error } = await supabase
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile load timeout')), 10000);
+      });
+      
+      const profilePromise = supabase
         .from('profiles')
         .select('id, email, username, level_tier, rank_division, level_score, rank_points, wins, losses, reputation, city, phone_number, profile_picture')
         .eq('id', userId)
         .single();
+      
+      const { data: profile, error } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]) as any;
 
       if (error) {
         console.error('❌ Supabase error loading profile:', JSON.stringify(error, null, 2));
@@ -79,7 +89,17 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
   const loadAuth = useCallback(async () => {
     try {
       console.log('🔧 Loading auth session');
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Auth session timeout')), 10000);
+      });
+      
+      const sessionPromise = supabase.auth.getSession();
+      
+      const { data: { session: currentSession }, error } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]) as any;
 
       if (error) {
         console.error('Session error:', error);
@@ -94,10 +114,11 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       } else {
         await clearAuth();
       }
-    } catch (error) {
-      console.error('Failed to load auth:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to load auth:', error?.message || error);
       await clearAuth();
     } finally {
+      console.log('✅ Setting isLoading to false');
       setIsLoading(false);
     }
   }, [clearAuth, loadUserProfile]);
