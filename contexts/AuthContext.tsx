@@ -219,17 +219,30 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         throw new Error('Failed to create user');
       }
 
+      console.log('📝 Inserting/updating profile with email and phone...');
+      
       const { error: profileError } = await supabase
-        .from('public_profiles')
-        .update({
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          email: authData.user.email,
           username,
           phone_number: phoneNumber,
-        })
-        .eq('id', authData.user.id);
+          level_score: 0,
+          rank_points: 0,
+          level_tier: 'Cuivre',
+          rank_division: 'Cuivre',
+          rank_sub: 1,
+        }, {
+          onConflict: 'id'
+        });
 
       if (profileError) {
-        console.warn('Profile update error:', profileError);
+        console.error('❌ Profile insert/update error:', profileError);
+        throw new Error(profileError.message || 'Failed to create profile');
       }
+      
+      console.log('✅ Profile created with email:', authData.user.email);
 
       const authUser: AuthUser = {
         id: authData.user.id,
