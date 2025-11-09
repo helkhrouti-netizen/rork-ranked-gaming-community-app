@@ -44,6 +44,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
 
       if (error) {
         console.error('❌ Supabase error loading profile:', JSON.stringify(error, null, 2));
+        if (error.code === 'PGRST116') {
+          console.log('⚠️ Profile does not exist yet, will be created');
+          return null;
+        }
         throw new Error(error.message || 'Failed to load user profile');
       }
 
@@ -72,7 +76,10 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
       console.error('❌ Error loading user profile:', errorMessage);
-      throw new Error(`Failed to load profile: ${errorMessage}`);
+      if (errorMessage.includes('timeout')) {
+        console.error('⏱️ Profile load timed out after 10s');
+      }
+      return null;
     }
   }, []);
 
@@ -221,33 +228,24 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         throw new Error('Failed to create user');
       }
 
-      console.log('📝 Inserting/updating profile with email and phone...');
+      console.log('⏳ Waiting 2s for trigger to create profile...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      console.log('📝 Updating profile with username and phone...');
       
-      const { data: profileData, error: profileError } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: authData.user.id,
-          email: authData.user.email,
+        .update({
           username,
           phone_number: phoneNumber,
-          level_score: 0,
-          rank_points: 0,
-          level_tier: 'Cuivre',
-          rank_division: 'Cuivre',
-          rank_sub: 1,
-        }, {
-          onConflict: 'id'
         })
-        .select()
-        .single();
+        .eq('id', authData.user.id);
 
       if (profileError) {
-        console.error('❌ Profile insert/update error:', profileError);
-        throw new Error(profileError.message || 'Failed to create profile');
+        console.error('⚠️ Profile update warning:', profileError.message);
+      } else {
+        console.log('✅ Profile updated successfully');
       }
-      
-      console.log('✅ Profile created with email:', authData.user.email);
-      console.log('📦 Profile data:', profileData);
 
       const authUser: AuthUser = {
         id: authData.user.id,
