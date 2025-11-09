@@ -32,7 +32,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       });
       
       const profilePromise = supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, email, username, level_tier, rank_division, level_score, rank_points, wins, losses, reputation, city, phone_number, profile_picture')
         .eq('id', userId)
         .single();
@@ -220,7 +220,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       }
 
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .update({
           username,
           phone_number: phoneNumber,
@@ -359,7 +359,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.log('📤 Sending updates to database:', dbUpdates);
       
       const { data: updatedProfile, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .update(dbUpdates)
         .eq('id', user.id)
         .select('id, email, username, level_tier, rank_division, level_score, rank_points')

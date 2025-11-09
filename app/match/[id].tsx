@@ -111,7 +111,7 @@ export default function MatchDetailsScreen() {
         }
 
         const { data: hostProfile, error: hostError } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, username, level_score, level_tier, city, phone_number')
           .eq('id', matchData.host_id)
           .single();

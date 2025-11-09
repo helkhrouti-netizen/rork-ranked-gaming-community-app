@@ -69,7 +69,7 @@ console.log('✅ Supabase client created successfully');
 (async () => {
   try {
     console.log('🧪 Testing Supabase connection...');
-    const { data, error } = await supabase.from('profiles').select('*').limit(1);
+    const { data, error } = await supabase.from('public_profiles').select('*').limit(1);
     
     if (error) {
       console.error('❌ Supabase connection test failed:', error.message);

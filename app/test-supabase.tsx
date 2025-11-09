@@ -78,7 +78,7 @@ export default function TestSupabaseScreen() {
     try {
       const start = Date.now();
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('count')
         .limit(1);
       
