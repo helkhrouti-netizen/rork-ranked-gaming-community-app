@@ -161,6 +161,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         email,
         password,
         options: {
+          emailRedirectTo: undefined,
           data: {
             username,
             phone_number: phoneNumber,
@@ -173,12 +174,20 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       if (signUpError) {
         console.error('❌ Supabase signup error:', signUpError.message);
         
+        if (signUpError.message.includes('rate limit')) {
+          throw new Error('Too many signup attempts. Please try again in a few minutes or use login if you already have an account.');
+        }
+        
         if (signUpError.message.includes('Network') || signUpError.message.includes('fetch')) {
           throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
         }
         
         if (signUpError.message.includes('Invalid API')) {
           throw new Error('Server configuration error. Please contact support.');
+        }
+        
+        if (signUpError.message.includes('already registered')) {
+          throw new Error('This email is already registered. Please use login instead.');
         }
         
         throw new Error(signUpError.message || 'Failed to create account');
