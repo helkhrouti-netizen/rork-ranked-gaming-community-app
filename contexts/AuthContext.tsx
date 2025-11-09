@@ -454,6 +454,9 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       const profileUpdates: any = {
         level_score: rpScore,
         level_tier: rankMapping.tier,
+        rank_division: rankMapping.tier,
+        rank_sub: rankMapping.sub,
+        rank_points: rpScore,
       };
       
       if (answers.username) {
@@ -462,18 +465,34 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       }
       
       if (answers.city) {
+        profileUpdates.city = answers.city;
         console.log('📍 Including city in update:', answers.city);
       }
       
       if (answers.avatarUri) {
+        profileUpdates.profile_picture = answers.avatarUri;
+        profileUpdates.avatar_url = answers.avatarUri;
         console.log('🖼️ Including avatar in update:', answers.avatarUri);
       }
       
-      await updateProfile(profileUpdates);
+      console.log('💾 Directly updating profiles table with all fields...');
+      const { error: directUpdateError } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', user!.id);
+      
+      if (directUpdateError) {
+        console.error('❌ Direct update error:', directUpdateError);
+        throw new Error(directUpdateError.message);
+      }
+      
+      await refreshProfile();
       
       setIsOnboarded(true);
       console.log('✅ Ranking assessed and saved:', {
         username: answers.username || 'not provided',
+        city: answers.city || 'not provided',
+        avatar: answers.avatarUri ? 'provided' : 'not provided',
         tier: rankMapping.tier,
         sub: rankMapping.sub,
         rp: rpScore
@@ -484,7 +503,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
       console.error('❌ Failed to assess ranking:', errorMessage);
       throw new Error(`Failed to assess ranking: ${errorMessage}`);
     }
-  }, [session, updateProfile]);
+  }, [session, user, refreshProfile]);
 
   return useMemo(
     () => ({
