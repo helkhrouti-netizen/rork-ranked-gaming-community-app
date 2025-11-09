@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const SUPABASE_URL = 'https://xwjenfvpmqwcikopopkm.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3amVuZnZwbXF3Y2lrb3BvcGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5NDQwNzYsImV4cCI6MjA3NjUyMDA3Nn0.2sZyn7RKC6dcdgmpIcq6KYTAWTTZ_9ajoqTcJcAFkB4';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://xwjenfvpmqwcikopopkm.supabase.co';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3amVuZnZwbXF3Y2lrb3BvcGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5NDQwNzYsImV4cCI6MjA3NjUyMDA3Nn0.2sZyn7RKC6dcdgmpIcq6KYTAWTTZ_9ajoqTcJcAFkB4';
 
 console.log('🔧 Initializing Supabase client...');
 console.log('📍 Platform:', Platform.OS);
@@ -28,9 +28,9 @@ const customFetch: typeof fetch = async (input, init?) => {
       ...options,
       signal: controller.signal,
       headers: {
+        ...options?.headers,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        ...options?.headers,
       },
     });
     
