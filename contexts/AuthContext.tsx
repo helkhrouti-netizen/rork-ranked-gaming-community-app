@@ -27,20 +27,11 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     try {
       console.log('🔍 Loading user profile for ID:', userId);
       
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile load timeout')), 5000);
-      });
-      
-      const profilePromise = supabase
+      const { data: profile, error } = await supabase
         .from('public_profiles')
         .select('id, email, username, level_tier, rank_division, level_score, rank_points, wins, losses, reputation, city, phone_number, profile_picture')
         .eq('id', userId)
         .maybeSingle();
-      
-      const { data: profile, error } = await Promise.race([
-        profilePromise,
-        timeoutPromise
-      ]) as any;
 
       if (error) {
         console.error('❌ Supabase error loading profile:', JSON.stringify(error, null, 2));
@@ -77,9 +68,6 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
       console.error('❌ Error loading user profile:', errorMessage);
-      if (errorMessage.includes('timeout')) {
-        console.error('⏱️ Profile load timed out after 5s');
-      }
       return null;
     }
   }, []);
@@ -100,16 +88,7 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
     try {
       console.log('🔧 Loading auth session');
       
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Auth session timeout')), 5000);
-      });
-      
-      const sessionPromise = supabase.auth.getSession();
-      
-      const { data: { session: currentSession }, error } = await Promise.race([
-        sessionPromise,
-        timeoutPromise
-      ]) as any;
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
 
       if (error) {
         console.error('❌ Session error:', error);
