@@ -40,6 +40,7 @@ export default function MatchDetailsScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
 
   useEffect(() => {
@@ -106,7 +107,10 @@ export default function MatchDetailsScreen() {
           .single();
 
         if (matchError || !matchData) {
-          console.error('❌ Match not found:', matchError);
+          const errorMsg = matchError?.message || 'Match not found';
+          console.error('❌ Match not found:', errorMsg);
+          setError(errorMsg);
+          setIsLoading(false);
           return;
         }
 
@@ -117,7 +121,10 @@ export default function MatchDetailsScreen() {
           .single();
 
         if (hostError || !hostProfile) {
-          console.error('❌ Host not found:', hostError);
+          const errorMsg = hostError?.message || 'Host not found';
+          console.error('❌ Host not found:', errorMsg);
+          setError(errorMsg);
+          setIsLoading(false);
           return;
         }
 
@@ -129,7 +136,10 @@ export default function MatchDetailsScreen() {
           .eq('match_id', id);
 
         if (participantsError) {
-          console.error('❌ Failed to fetch participants:', participantsError);
+          const errorMsg = participantsError?.message || 'Failed to fetch participants';
+          console.error('❌ Failed to fetch participants:', errorMsg);
+          setError(errorMsg);
+          setIsLoading(false);
           return;
         }
 
@@ -200,7 +210,9 @@ export default function MatchDetailsScreen() {
         setMatch(formattedMatch);
       }
     } catch (error) {
-      console.error('❌ Error loading match:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to load match';
+      console.error('❌ Error loading match:', errorMsg);
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -274,11 +286,51 @@ export default function MatchDetailsScreen() {
     }
   };
 
-  if (isLoading || !match) {
+  if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator color={Colors.colors.primary} size="large" />
         <Text style={styles.loadingText}>Loading match...</Text>
+      </View>
+    );
+  }
+
+  if (error && !match) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Unable to Load Match</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError('');
+              loadMatch();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backToHomeButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backToHomeButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (!match) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.loadingText}>Match not found</Text>
+        <TouchableOpacity
+          style={styles.backToHomeButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backToHomeButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -881,5 +933,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.colors.textSecondary,
   },
-
+  errorCard: {
+    backgroundColor: Colors.colors.surface,
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    borderWidth: 1,
+    borderColor: Colors.colors.border,
+    alignItems: 'center',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.colors.danger,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: Colors.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: Colors.colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 12,
+    width: '100%',
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.colors.textPrimary,
+    textAlign: 'center',
+  },
+  backToHomeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  backToHomeButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.colors.textSecondary,
+    textAlign: 'center',
+  },
 });
