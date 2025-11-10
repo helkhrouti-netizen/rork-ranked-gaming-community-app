@@ -236,23 +236,68 @@ const [AuthProviderInternal, useAuthInternal] = createContextHook(() => {
         throw new Error('Failed to create user');
       }
 
-      console.log('⏳ Waiting 2s for trigger to create profile...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      console.log('📝 Updating profile with username and phone...');
+      console.log('⏳ Waiting for trigger to create profile...');
       
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          username,
-          phone_number: phoneNumber,
-        })
-        .eq('id', authData.user.id);
+      let profileCreated = false;
+      for (let i = 0; i < 5; i++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const { data: checkProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+        
+        if (checkProfile) {
+          profileCreated = true;
+          console.log('✅ Profile created by trigger');
+          break;
+        }
+        
+        if (i === 4) {
+          console.log('⚠️ Profile not created by trigger, creating manually...');
+          const { error: manualCreateError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              email: authData.user.email,
+              username,
+              phone_number: phoneNumber,
+              level_score: 0,
+              level_tier: 'Cuivre',
+              rank_division: 'Cuivre',
+              rank_sub: 1,
+              rank_points: 0,
+              wins: 0,
+              losses: 0,
+              reputation: 5.0,
+              games_played: 0
+            });
+          
+          if (manualCreateError) {
+            console.error('❌ Manual profile creation error:', manualCreateError.message);
+            throw new Error('Database error saving new user');
+          }
+          profileCreated = true;
+        }
+      }
 
-      if (profileError) {
-        console.error('⚠️ Profile update warning:', profileError.message);
-      } else {
-        console.log('✅ Profile updated successfully');
+      if (profileCreated && username && phoneNumber) {
+        console.log('📝 Updating profile with username and phone...');
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            username,
+            phone_number: phoneNumber,
+          })
+          .eq('id', authData.user.id);
+
+        if (profileError) {
+          console.error('⚠️ Profile update warning:', profileError.message);
+        } else {
+          console.log('✅ Profile updated successfully');
+        }
       }
 
       const authUser: AuthUser = {
